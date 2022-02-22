@@ -1,17 +1,13 @@
 # logMerger
 This software aims to provide fast way to reproduce mp4 video with audio including all stalls and resolution changes from information stored in video log. Log is created on client in the time when video is originally watched where information about every adaptive stream segment downloaded to cliend is stored. Log can include many information like segment(chunk) index, duration, arrival time, height, width, fps, bitrate and other. For this software to work properly it is neccesary to have stored information about segment(chunk) index and bitrate and for eventual stalls to have information about stall duration and between which two segments it ocurred. Currently tab delimited, and comma separated value files are supported for log files. In picture 1 example of video log is shown.
 
-![alt text](https://image.prntscr.com/image/ajXgmN4qS72U0hmfclQdCA.png)
-
-Picture 1 - Video log example
+![alt text](resources/log.png?raw=true "Picture 1 - Video log example")
 
 Software is implemented in python programming language, version 3.10.0. Python modules used in implementation are: pandas, version 1.3.5, configparser, version 5.2.0 and mpegdash, version 0.3.0. First step is to parse video log file . This is implemented in two functions: read_replevels_log and  read_stalls_log. Read_replevels_log function takes 4 arguments: path to where file is stored, names of segment(chunk) index and bitrate column names in log and separator type, either csv or tab.  Log is parsed and result is saved in dictionary where key is index and value is bitrate. Read_stalls_log function also takes 4 arguments: path to where file is stored, names of segment(chunk) index and stall duration column names in log and separator type, either csv or tab. Log is parsed and result is saved in dictionary where key is index and value is stall duration.
 
 Next step is to prepare all logged segments. Segments can be downloaded from server using url to mpd file or can be transferred from folder where all segments are locally stored. If segments are stored locally than those 3 functions are called:  copy_init_file,  copy_video_segments and  copy_audio_segments.  All those funcions takes two parameters: path to where segments, either audio or vide are stored, and path to destination where segments are going to be copied. In this function all files in parameter path are looped looking for init file, when init file is found it is copied to destination folder. This function is called two times if audio and video segments and init files are in different destinations. Than functions copy_video_segments and copy_audio_segments are called. They use dictionary created earlier in read_repleveles_log function to determine which segments to copy, finds them in parameter folder matching names with regular expression and than copies them to destination folder. If segments are not stored locally then they can be downloaded from server using url to where mpd file is stored. MPD (media presentation description) are XML (extensible markup language) files that contains information about stream and that a DASH client uses to determine which assets to request in order to perform adaptive streaming of the content [citat?]. MPD file example is shown in picture 2. 
 
-![alt text](https://image.prntscr.com/image/ajXgmN4qS72U0hmfclQdCA.png)
-
-Picture 2 - MPD file example
+![alt text](resources/mpd.png?raw=true "Picture 2 - MPD file example")
 
 To parse this file python module mpegdash [citat link na github] was used to parse mpd file into python object with points of interest such as audio and video suburls saved into dictionaries to use them in latter functions for segments download. This is implemented in function parse_mpd that url to where mpd file is stored on server as argument. Functions download_video_segments and download_audio segments takes 3 parameters: url to mpd file, path to destination folder where segments are going to be downloaded, and os type to determine which operating system commands to use for remote download. Dictionaries created in parse_mpd are used with some regex manipulation to match segment(chunk) indexes in urls and than those segments are downloaded to destination folder. After this step all video and audio segments needed to reproduce video are saved in same destination locally.
 
@@ -46,9 +42,7 @@ command = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -f
 After all segments are prepared, they are merged into final video using ffmpeg concat method. When 
 final video is created, all other files created in the process are cleaned calling function clean_folder. Parameters can be send to script from terminal or they can be stored in config file. Config .ini file is supported and example of config file is shown in picture 3:
 
-![alt text](https://image.prntscr.com/image/ajXgmN4qS72U0hmfclQdCA.png)
-
-Picture 3 - config file example
+![alt text](resources/config.png?raw=true "Picture 3 - config file example")
 
 Parameters can be also sent directly from terminal when calling script like in example:
 
@@ -60,7 +54,6 @@ l\merging\final" --concat_type=0
 
 How explained steps are connected is shown in activity diagram in picture 4:
 
-![alt text](https://image.prntscr.com/image/ajXgmN4qS72U0hmfclQdCA.png)
-Picture 4: Software activity diagram 
+![alt text](/resources/ActivityDiagram1.jpg?raw=true "Picture 4: Software activity diagram")
 
 
