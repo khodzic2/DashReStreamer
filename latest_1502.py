@@ -126,7 +126,7 @@ def prepare_audio_init(path, osystem):
             komanda = suffix + path_init + " " + path_file + " > " + path_final
             os.system(komanda)
 
-def concat_audio_video_ffmpeg(path, auto_scale=False):
+def concat_audio_video_ffmpeg(path, auto_scale):
     # combines audio and video segments into one file, it rescales resolution to max if auto_scale option is on, default is False
     audio = ""
     m4s = ""
