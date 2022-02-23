@@ -15,12 +15,12 @@ list_mpd_audio = dict()
 list_mpd_video = dict()
 list_resolutions = dict()
 
-def fill_resolution_dict():
-    list_resolutions["720p"] = [1280,720]
-    list_resolutions["1080p"] = [1920,1080]
-    list_resolutions["1440p"] = [2560,1440]
-    list_resolutions["2160p"] = [3840,2160]
 
+def fill_resolution_dict():
+    list_resolutions["720p"] = [1280, 720]
+    list_resolutions["1080p"] = [1920, 1080]
+    list_resolutions["1440p"] = [2560, 1440]
+    list_resolutions["2160p"] = [3840, 2160]
 
 
 def read_replevels_log(path, bitrate_column_name, index_column_name, delimiter):
@@ -36,6 +36,7 @@ def read_replevels_log(path, bitrate_column_name, index_column_name, delimiter):
         # maps index to bitrate
         list_seg_rep_csv[row[index_column_name]] = row[bitrate_column_name]
 
+
 def read_stalls_log(path, stall_column_name, index_column_name, delimiter):
     # read log and save stalls and indexes
     if delimiter == 'tab':
@@ -48,6 +49,7 @@ def read_stalls_log(path, stall_column_name, index_column_name, delimiter):
     for index, row in (df.loc[df[stall_column_name] > 0]).iterrows():
         list_stall_values[row[index_column_name]] = row[stall_column_name]
 
+
 def copy_init_file(path, newfolder_path):
     # copy init file from source to destination
     if not os.path.exists(newfolder_path):
@@ -58,6 +60,7 @@ def copy_init_file(path, newfolder_path):
             filepath = os.path.join(path, filename)
             filenewpath = os.path.join(newfolder_path, filename)
             copyfile(filepath, filenewpath)
+
 
 def copy_video_segments(path, destination):
     # copy video segments from log to destination
@@ -78,6 +81,7 @@ def copy_video_segments(path, destination):
                         new_destination = os.path.join(destination, filename)
                         copyfile(path_to_file, new_destination)
 
+
 def copy_audio_segments(path, destination):
     # copies audio log segments from source to destination
     for key in list_seg_rep_csv:
@@ -89,6 +93,7 @@ def copy_audio_segments(path, destination):
                 print(path_to_file)
                 print(new_destination)
                 copyfile(path_to_file, new_destination)
+
 
 def prepare_video_init(path, osystem):
     # combines video segments with init file
@@ -108,14 +113,15 @@ def prepare_video_init(path, osystem):
             m4s2 = m4s.removesuffix(".m4s")
             path_init = os.path.join(path, init)
             path_file = os.path.join(path, m4s)
-            path_final = os.path.join(path, "inited" + m4s2+".mp4")
+            path_final = os.path.join(path, "inited" + m4s2 + ".mp4")
             komanda = suffix + path_init + " " + path_file + " > " + path_final
             os.system(komanda)
+
 
 def prepare_audio_init(path, osystem):
     # combines audio segments with init file
     init = ""
-    suffix=""
+    suffix = ""
     if osystem == 'win':
         suffix = "type "
     if osystem == 'linux':
@@ -136,13 +142,14 @@ def prepare_audio_init(path, osystem):
             komanda = suffix + path_init + " " + path_file + " > " + path_final
             os.system(komanda)
 
+
 def concat_audio_video_ffmpeg(path, auto_scale, resolution):
     # combines audio and video segments into one file, it rescales resolution to max if auto_scale option is 1, if 2 then resolution is read
     audio = ""
     m4s = ""
     segment = ""
     x = tuple
-    if auto_scale==1:
+    if auto_scale == 1:
         x = helper_get_max_resolution_fps_duration(path, "inited")
     for file in os.listdir(path):
         filename = os.fsdecode(file)
@@ -155,27 +162,30 @@ def concat_audio_video_ffmpeg(path, auto_scale, resolution):
                     video = str(filename2)
                     path_video = os.path.join(path, video)
                     path_audio = os.path.join(path, audio)
-                    path_i_video = os.path.join(path, "i" + video.split(".mp4")[0]+".mkv")
-                    path_final = os.path.join(path, "merged" + video.split(".mp4")[0]+".mkv")
+                    path_i_video = os.path.join(path, "i" + video.split(".mp4")[0] + ".mkv")
+                    path_final = os.path.join(path, "merged" + video.split(".mp4")[0] + ".mkv")
                     komanda = "ffmpeg -fflags +genpts -i " + path_video + " -i " + path_audio + " -c copy " + path_i_video
                     os.system(komanda)
-                    if auto_scale==0:
-                        copyfile(path_i_video,path_final)
-                    if auto_scale==1:
-                        komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + str(x[1]) + ':' + str(x[3]) + " -c:a copy " + path_final
+                    if auto_scale == 0:
+                        copyfile(path_i_video, path_final)
+                    if auto_scale == 1:
+                        komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + str(x[1]) + ':' + str(
+                            x[3]) + " -c:a copy " + path_final
                         os.system(komanda4)
-                    if auto_scale==2:
-                        komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + list_resolutions[resolution][0] + ':' + list_resolutions[resolution][1] + " -c:a copy " + path_final
+                    if auto_scale == 2:
+                        komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + str(
+                            list_resolutions[resolution][0]) + ':' + str(
+                            list_resolutions[resolution][1]) + " -c:a copy " + path_final
                         os.system(komanda4)
 
 
 def helper_get_max_resolution_fps_duration(path, prefix):
     # function to get resolution, fps and duration of a highest resolution segment using ffprobe
-    suffix=""
-    if prefix== "inited":
-        suffix=".mp4"
-    if prefix=="merged":
-        suffix=".mkv"
+    suffix = ""
+    if prefix == "inited":
+        suffix = ".mp4"
+    if prefix == "merged":
+        suffix = ".mkv"
 
     list_inter_names2 = dict()
     for file in os.listdir(path):
@@ -183,24 +193,25 @@ def helper_get_max_resolution_fps_duration(path, prefix):
         if str(filename).endswith(suffix) and str(filename).startswith(prefix):
             segment = re.search("(\d+)(?!.*\d)", filename.removesuffix(suffix)).group(1)
             list_inter_names2[int(segment)] = str(filename)
-            print (filename)
+            print(filename)
     sorted_dict = dict(sorted(list_inter_names2.items()))
     segment = (
-    sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
+        sorted_dict[
+            list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
 
-    komanda = "ffmpeg -i " + os.path.join(path, segment) + " -codec copy " + os.path.join(path, segment.removesuffix(".mkv")+".mp4")
+    komanda = "ffmpeg -i " + os.path.join(path, segment) + " -codec copy " + os.path.join(path, segment.removesuffix(
+        ".mkv") + ".mp4")
     segment_path = os.path.join(path, segment)
     if suffix == ".mkv":
         os.system(komanda)
-        segment_path=os.path.join(path, segment.removesuffix(".mkv")+".mp4")
-
+        segment_path = os.path.join(path, segment.removesuffix(".mkv") + ".mp4")
 
     result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
                              'stream=width,height,avg_frame_rate,duration', '-of',
                              'default=noprint_wrappers=1', segment_path
                              ],
                             stdout=subprocess.PIPE).stdout.decode('utf-8')
-    #result = result.split("/1")[0]
+    # result = result.split("/1")[0]
     return helper_format_result_string(result)
 
 
@@ -260,8 +271,9 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
     os.system(komanda)
     ss_path = os.path.join(path, 'sss' + sorted_dict[key])
     subkomanda = "'gte(t," + str(duration) + ")'"""
-    scale_gif = int(x[1]) //13
-    komanda = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -filter_complex "[1:v]format=yuva444p,scale=%d:%d,setsar=1,rotate=PI/6:c=black@0:ow=rotw(PI/6):oh=roth(PI/6) [rotate];[0:v][rotate] overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:format=auto:shortest=1:enable='%(scale_gif, scale_gif) + subkomanda + '" -codec:a copy -y ' + ss_path
+    scale_gif = int(x[1]) // 13
+    komanda = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -filter_complex "[1:v]format=yuva444p,scale=%d:%d,setsar=1,rotate=PI/6:c=black@0:ow=rotw(PI/6):oh=roth(PI/6) [rotate];[0:v][rotate] overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:format=auto:shortest=1:enable=' % (
+    scale_gif, scale_gif) + subkomanda + '" -codec:a copy -y ' + ss_path
     os.system(komanda)
     seg_path = os.path.join(path, "segmentList.txt")
     komanda = ' echo file ' + "'" + ss_path + "'" + '  >>  ' + seg_path
@@ -287,10 +299,12 @@ def concat_video_segments_final(path, path_to_gif, path_to_file):
     komanda = "ffmpeg -f concat -safe 0 -i " + full_path + " -c copy " + final_path
     os.system(komanda)
 
+
 def clean_folder(path):
     for f in os.listdir(path):
         if os.path.isfile(os.path.join(path, f)):
             os.remove(os.path.join(path, f))
+
 
 def parse_mpd(mpd_url):
     # parses mpd from given url, and saves all audio and video media links into list_mpd_audio and list_mpd_video dictionaries
@@ -329,7 +343,6 @@ def parse_mpd(mpd_url):
 def download_audio_segments(mpd_url, destination, osystem):
     # downloads audio log segments from source to destination, now supports only one audio quality, it can be easily modifed to support more
 
-
     # creates folder and opens new file to store all audio segment urls
     if not os.path.exists(destination):
         os.makedirs(destination)
@@ -358,7 +371,6 @@ def download_audio_segments(mpd_url, destination, osystem):
         komanda = 'wget -i ' + full_path + ' -P ' + destination
     if osystem == 'win':
         os.chdir(destination)
-        # for / f "tokens=*" % a in (list.txt) do curl -O % a
         komanda = 'for /f "tokens=*" %a in (' + full_path + ') do curl -O %a'
         print(komanda)
     os.system(komanda)
@@ -394,7 +406,6 @@ def download_video_segments(mpd_url, destination, osystem):
         komanda = 'wget -i ' + full_path + ' -P ' + destination
     if osystem == 'win':
         os.chdir(destination)
-        #for / f "tokens=*" % a in (list.txt) do curl -O % a
         komanda = 'for /f "tokens=*" %a in (' + full_path + ') do curl -O %a'
     os.system(komanda)
 
@@ -461,8 +472,8 @@ if __name__ == '__main__':
         mpd_path = param["mpd_path"]
         auto_scale = int(param["auto_scale"])
         log_location = param["log_location"]
-        cleanup=param["cleanup"]
-        scale_resolution=param["scale_resolution"]
+        cleanup = param["cleanup"]
+        scale_resolution = param["scale_resolution"]
         read_replevels_log(path_to_log, rep_lvl_column, chunk_index_column, log_separator)
         read_stalls_log(path_to_log, stall_dur_column, chunk_index_column, log_separator)
         if log_location != 'local':
@@ -478,7 +489,7 @@ if __name__ == '__main__':
         prepare_audio_init(dest_video, os_type)
         concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
         concat_video_segments_final(dest_video, gif_path, final_path)
-        if cleanup:
+        if cleanup == "True":
             clean_folder(dest_video)
 
     if args.par_type == 'path':
@@ -489,7 +500,6 @@ if __name__ == '__main__':
             download_audio_segments(args.log_location, args.dest_video, args.os)
             download_video_segments(args.log_location, args.dest_video, args.os)
         if args.log_location == 'local':
-            print ("rr")    
             copy_init_file(args.path_video, args.dest_video)
             copy_init_file(args.path_audio, args.dest_video)
             copy_video_segments(args.path_video, args.dest_video)
@@ -498,5 +508,5 @@ if __name__ == '__main__':
         prepare_audio_init(args.dest_video, args.os)
         concat_audio_video_ffmpeg(args.dest_video, args.auto_scale, args.scale_resolution)
         concat_video_segments_final(args.dest_video, args.gif_path, args.final_path)
-        if args.cleanup:
+        if args.cleanup == "True":
             clean_folder(args.dest_video)
