@@ -90,8 +90,6 @@ def copy_audio_segments(path, destination):
             if str(filename).endswith("_" + str(key) + '.m4s'):
                 path_to_file = os.path.join(path, filename)
                 new_destination = os.path.join(destination, filename)
-                print(path_to_file)
-                print(new_destination)
                 copyfile(path_to_file, new_destination)
 
 
@@ -193,7 +191,6 @@ def helper_get_max_resolution_fps_duration(path, prefix):
         if str(filename).endswith(suffix) and str(filename).startswith(prefix):
             segment = re.search("(\d+)(?!.*\d)", filename.removesuffix(suffix)).group(1)
             list_inter_names2[int(segment)] = str(filename)
-            print(filename)
     sorted_dict = dict(sorted(list_inter_names2.items()))
     segment = (
         sorted_dict[
@@ -372,7 +369,6 @@ def download_audio_segments(mpd_url, destination, osystem):
     if osystem == 'win':
         os.chdir(destination)
         komanda = 'for /f "tokens=*" %a in (' + full_path + ') do curl -O %a'
-        print(komanda)
     os.system(komanda)
 
 
@@ -387,8 +383,8 @@ def download_video_segments(mpd_url, destination, osystem):
     mpd_url2 = mpd_url.rsplit("/", 1)[0]
 
     # copy location to video init file
-    mpd_full_path_ = os.path.join(mpd_url2, str(list_mpd_video[0]))
-    komanda = " echo " + mpd_url2 + mpd_full_path_ + " >> " + full_path
+    #mpd_full_path_ = os.path.join(os.sep,mpd_url2+os.sep, str(list_mpd_video[0]))
+    komanda = " echo " + mpd_url2 + "/" + str(list_mpd_video[0]) + " >> " + full_path
     os.system(komanda)
 
     # for every segment in log, map bandwidth with bandwidth from mpd and save server url of that segment to a file
@@ -397,8 +393,8 @@ def download_video_segments(mpd_url, destination, osystem):
             if key2 != 0:
                 if list_seg_rep_csv[key] >= key2 / 1000 * 0.95 and list_seg_rep_csv[key] <= key2 / 1000 * 1.05:
                     substring = str(list_mpd_video[key2]).replace('$Number$', str(key))
-                    mpd_full_path = os.path.join(mpd_url2, substring)
-                    komanda = " echo " + mpd_full_path + " >> " + full_path
+                    #mpd_full_path = os.path.join(mpd_url2, substring)
+                    komanda = " echo " + mpd_url2 + "/" + substring + " >> " + full_path
                     os.system(komanda)
 
     # download all files to specified location
