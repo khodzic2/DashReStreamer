@@ -152,27 +152,38 @@ def concat_audio_video_ffmpeg(path, auto_scale=False):
                     if not auto_scale:
                         copyfile(path_i_video,path_final)
                     if auto_scale:
-                        komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + str(x[1]) + ':' + str(x[3]) + " " + path_final
+                        komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + str(x[1]) + ':' + str(x[3]) + " -c:a copy " + path_final
                         os.system(komanda4)
 
-def helper_get_max_resolution_fps_duration(path, sufix):
+def helper_get_max_resolution_fps_duration(path, prefix):
     # function to get resolution, fps and duration of a highest resolution segment using ffprobe
+    suffix=""
+    if prefix== "inited":
+        suffix=".mp4"
+    if prefix=="merged":
+        suffix=".mkv"
+
     list_inter_names2 = dict()
     for file in os.listdir(path):
         filename = os.fsdecode(file)
-        if str(filename).endswith(".mkv") and str(filename).startswith(sufix):
-            segment = re.search("(\d+)(?!.*\d)", filename.removesuffix(".mkv")).group(1)
+        if str(filename).endswith(suffix) and str(filename).startswith(prefix):
+            segment = re.search("(\d+)(?!.*\d)", filename.removesuffix(suffix)).group(1)
             list_inter_names2[int(segment)] = str(filename)
             print (filename)
     sorted_dict = dict(sorted(list_inter_names2.items()))
     segment = (
     sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
-    komanda = "ffmpeg -i " + os.path.join(path, segment) + " -codec copy " + os.path.join(path, segment.removesuffix(".mkv")+".mp4")
 
-    os.system(komanda)
+    komanda = "ffmpeg -i " + os.path.join(path, segment) + " -codec copy " + os.path.join(path, segment.removesuffix(".mkv")+".mp4")
+    segment_path = os.path.join(path, segment)
+    if suffix == ".mkv":
+        os.system(komanda)
+        segment_path=os.path.join(path, segment.removesuffix(".mkv")+".mp4")
+
+
     result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
                              'stream=width,height,avg_frame_rate,duration', '-of',
-                             'default=noprint_wrappers=1', os.path.join(path, segment.removesuffix(".mkv")+".mp4")
+                             'default=noprint_wrappers=1', segment_path
                              ],
                             stdout=subprocess.PIPE).stdout.decode('utf-8')
     #result = result.split("/1")[0]
@@ -223,6 +234,8 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
         0] + ':sample_rate=' + y[3] + ' -t ' + str(stall_duration) + ' -c:a ' + y[1] + ' -c:v libx264 -t ' + str(
         stall_duration) + ' -pix_fmt yuv420p -vf scale=' + x[1] + ':' + x[3] + ' -r ' + (x[5].split('/'))[
                   0] + ' -y ' + path_mp4s
+    print("PROBA")
+    print(command)
     os.system(command)
     temp_path = os.path.join(os.sep, path + os.sep, "temporaryList.txt")
     open(temp_path, 'w').close()
@@ -466,7 +479,7 @@ if __name__ == '__main__':
         if auto_scale=='False':
             concat_audio_video_ffmpeg(dest_video, False)
         concat_video_segments_final(dest_video, gif_path, final_path, concat_type)
-        #clean_folder(dest_video)
+        clean_folder(dest_video)
 
     if args.par_type == 'path':
         read_replevels_log(args.path_to_log, args.rep_lvl_column, args.chunk_index_column, args.log_separator)
