@@ -237,7 +237,8 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
     subkomanda = "'gte(t," + str(duration) + ")'"""
     print("PROBA")
     print(subkomanda)
-    komanda = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -filter_complex "[1:v]format=yuva444p,scale=80:80,setsar=1,rotate=PI/6:c=black@0:ow=rotw(PI/6):oh=roth(PI/6) [rotate];[0:v][rotate] overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:shortest=1:enable=' + subkomanda + '" -codec:a copy -y ' + ss_path
+    scale_gif = int(x[1]) //13
+    komanda = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -filter_complex "[1:v]format=yuva444p,scale=%d:%d,setsar=1,rotate=PI/6:c=black@0:ow=rotw(PI/6):oh=roth(PI/6) [rotate];[0:v][rotate] overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:format=auto:shortest=1:enable='%(scale_gif, scale_gif) + subkomanda + '" -codec:a copy -y ' + ss_path
     os.system(komanda)
     seg_path = os.path.join(os.sep, path + os.sep, "segmentList.txt")
     komanda = ' echo file ' + "'" + ss_path + "'" + '  >>  ' + seg_path
