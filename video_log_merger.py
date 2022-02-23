@@ -13,9 +13,19 @@ list_inter_names = dict()
 list_stall_values = dict()
 list_mpd_audio = dict()
 list_mpd_video = dict()
+list_resolutions = dict()
+
+def fill_resolution_dict():
+    list_resolutions["720p"] = [1280,720]
+    list_resolutions["1080p"] = [1920,1080]
+    list_resolutions["1440p"] = [2560,1440]
+    list_resolutions["2160p"] = [3840,2160]
+
+
 
 def read_replevels_log(path, bitrate_column_name, index_column_name, delimiter):
     # read log and save bitrates and indexes
+
     if delimiter == 'tab':
         df = pd.read_csv(path, sep='\t')
     elif delimiter == 'csv':
@@ -126,13 +136,13 @@ def prepare_audio_init(path, osystem):
             komanda = suffix + path_init + " " + path_file + " > " + path_final
             os.system(komanda)
 
-def concat_audio_video_ffmpeg(path, auto_scale):
-    # combines audio and video segments into one file, it rescales resolution to max if auto_scale option is on, default is False
+def concat_audio_video_ffmpeg(path, auto_scale, resolution):
+    # combines audio and video segments into one file, it rescales resolution to max if auto_scale option is 1, if 2 then resolution is read
     audio = ""
     m4s = ""
     segment = ""
     x = tuple
-    if auto_scale:
+    if auto_scale==1:
         x = helper_get_max_resolution_fps_duration(path, "inited")
     for file in os.listdir(path):
         filename = os.fsdecode(file)
@@ -147,14 +157,17 @@ def concat_audio_video_ffmpeg(path, auto_scale):
                     path_audio = os.path.join(path, audio)
                     path_i_video = os.path.join(path, "i" + video.split(".mp4")[0]+".mkv")
                     path_final = os.path.join(path, "merged" + video.split(".mp4")[0]+".mkv")
-                    print("FINAL: " + path_final)
                     komanda = "ffmpeg -fflags +genpts -i " + path_video + " -i " + path_audio + " -c copy " + path_i_video
                     os.system(komanda)
-                    if not auto_scale:
+                    if auto_scale==0:
                         copyfile(path_i_video,path_final)
-                    if auto_scale:
+                    if auto_scale==1:
                         komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + str(x[1]) + ':' + str(x[3]) + " -c:a copy " + path_final
                         os.system(komanda4)
+                    if auto_scale==2:
+                        komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + list_resolutions[resolution][0] + ':' + list_resolutions[resolution][1] + " -c:a copy " + path_final
+                        os.system(komanda4)
+
 
 def helper_get_max_resolution_fps_duration(path, prefix):
     # function to get resolution, fps and duration of a highest resolution segment using ffprobe
@@ -235,8 +248,6 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
         0] + ':sample_rate=' + y[3] + ' -t ' + str(stall_duration) + ' -c:a ' + y[1] + ' -c:v libx264 -t ' + str(
         stall_duration) + ' -pix_fmt yuv420p -vf scale=' + x[1] + ':' + x[3] + ' -r ' + (x[5].split('/'))[
                   0] + ' -y ' + path_mp4s
-    print("PROBA")
-    print(command)
     os.system(command)
     temp_path = os.path.join(path, "temporaryList.txt")
     open(temp_path, 'w').close()
@@ -249,8 +260,6 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
     os.system(komanda)
     ss_path = os.path.join(path, 'sss' + sorted_dict[key])
     subkomanda = "'gte(t," + str(duration) + ")'"""
-    print("PROBA")
-    print(subkomanda)
     scale_gif = int(x[1]) //13
     komanda = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -filter_complex "[1:v]format=yuva444p,scale=%d:%d,setsar=1,rotate=PI/6:c=black@0:ow=rotw(PI/6):oh=roth(PI/6) [rotate];[0:v][rotate] overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:format=auto:shortest=1:enable='%(scale_gif, scale_gif) + subkomanda + '" -codec:a copy -y ' + ss_path
     os.system(komanda)
@@ -260,15 +269,11 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
     return x
 
 
-def concat_video_segments_final(path, path_to_gif, path_to_file, concat_type=1):
+def concat_video_segments_final(path, path_to_gif, path_to_file):
     # create stalls and merge final video
     sorted_dict = helper_segment_list(path)
     x = helper_get_max_resolution_fps_duration(path, "merged")
     full_path = os.path.join(path, "segmentList.txt")
-    max_seg_path = os.path.join(path, sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
-    if concat_type == 0:
-        komanda = ' echo file ' + "'" + max_seg_path + "'" + " >> " + full_path
-        os.system(komanda)
     for key in sorted_dict:
         if ((key + 1) in list_stall_values.keys()):
             create_stalled_video(path, sorted_dict, key, path_to_gif, float(x[7]))
@@ -279,21 +284,8 @@ def concat_video_segments_final(path, path_to_gif, path_to_file, concat_type=1):
     if not os.path.exists(path_to_file):
         os.makedirs(path_to_file)
     final_path = os.path.join(path_to_file, 'FinalVideo.mkv')
-    if concat_type == 1:
-        komanda = "ffmpeg -f concat -safe 0 -i " + full_path + " -c copy " + final_path
-        os.system(komanda)
-    if concat_type == 0:
-        os.system("mkdir -p %s"%path_to_file)
-        komanda = 'ffmpeg -safe 0 -f concat -segment_time_metadata 1 -i ' + full_path + ' -vf select=concatdec_select -af aselect=concatdec_select,aresample=async=1 ' + final_path
-        os.system(komanda)
-        gifed_path = os.path.join(path_to_file, 'gifedVideo.mkv')
-        gifed_final = os.path.join(path_to_file, 'gifedfinalVideo.mkv')
-        seconds = float(x[7])
-        minutes, seconds = divmod(seconds, 60)
-        hours, minutes = divmod(minutes, 60)
-        komanda = 'ffmpeg  -i ' + gifed_path + ' -ss ' + "%02d:%02d:%02d" % (
-        hours, minutes, seconds) + ' -c:v libx264 ' + gifed_final
-        os.system(komanda)
+    komanda = "ffmpeg -f concat -safe 0 -i " + full_path + " -c copy " + final_path
+    os.system(komanda)
 
 def clean_folder(path):
     for f in os.listdir(path):
@@ -431,22 +423,27 @@ if __name__ == '__main__':
                         help='Full path to gif')
     parser.add_argument('--final_path', dest='final_path', type=str, default="",
                         help='Full path to place where to store final video')
-    parser.add_argument("--concat_type", dest='concat_type', type=int, default=1,
-                        help='Concat type, default is 1, 0 for reencoding and inserting temporary start segment')
     parser.add_argument("--mpd_path", dest='mpd_path', type=str, default="",
                         help='URL where mpd with audio and video is')
-    parser.add_argument("--auto_scale", dest='auto_scale', type=bool, default=False,
-                        help='If auto scale option is on then all video segments are rescaled to resolution of highest quality segment ')
+    parser.add_argument("--auto_scale", dest='auto_scale', type=int, default=0,
+                        help='If auto scale option is 0 it is off, if 1 then all video segments are rescaled to resolution of highest quality segment, if 2 aditional parameter scale_resolution is read')
     parser.add_argument("--log_location", dest='log_location', type=str, default='local',
                         help='local is for locally downloaded segments, mpd link is to download segments from server, where full link is sent as parameter ')
     parser.add_argument("--parameter_type", dest='par_type', type=str, default='config',
                         help='Specifies how parameters are sent to script - path for sending parameters in console while calling script, and config for seting parameters in .ini file ')
     parser.add_argument("--config_path", dest='config_path', type=str, default="",
                         help='Path to where .ini config file is stored ')
+    parser.add_argument("--cleanup", dest='cleanup', type=bool, default=False,
+                        help='If True all files except final video in dest_video deleted')
+    parser.add_argument("--scale_resolution", dest='scale_resolution', type=str,
+                        help='720p, 1080p, 1440p or 2160p, auto_scale should be set to 2')
 
     args = parser.parse_args()
 
+    fill_resolution_dict()
+
     if args.par_type == 'config':
+
         config_obj = configparser.ConfigParser()
         config_obj.read(args.config_path)
         param = config_obj["parameters"]
@@ -461,10 +458,11 @@ if __name__ == '__main__':
         os_type = param["os"]
         gif_path = param["gif_path"]
         final_path = param["final_path"]
-        concat_type = int(param["concat_type"])
         mpd_path = param["mpd_path"]
-        auto_scale = param["auto_scale"]
+        auto_scale = int(param["auto_scale"])
         log_location = param["log_location"]
+        cleanup=param["cleanup"]
+        scale_resolution=param["scale_resolution"]
         read_replevels_log(path_to_log, rep_lvl_column, chunk_index_column, log_separator)
         read_stalls_log(path_to_log, stall_dur_column, chunk_index_column, log_separator)
         if log_location != 'local':
@@ -478,12 +476,10 @@ if __name__ == '__main__':
             copy_audio_segments(path_audio, dest_video)
         prepare_video_init(dest_video, os_type)
         prepare_audio_init(dest_video, os_type)
-        if auto_scale=='True':
-            concat_audio_video_ffmpeg(dest_video, True)
-        if auto_scale=='False':
-            concat_audio_video_ffmpeg(dest_video, False)
-        concat_video_segments_final(dest_video, gif_path, final_path, concat_type)
-        clean_folder(dest_video)
+        concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
+        concat_video_segments_final(dest_video, gif_path, final_path)
+        if cleanup:
+            clean_folder(dest_video)
 
     if args.par_type == 'path':
         read_replevels_log(args.path_to_log, args.rep_lvl_column, args.chunk_index_column, args.log_separator)
@@ -500,6 +496,7 @@ if __name__ == '__main__':
             copy_audio_segments(args.path_audio, args.dest_video)
         prepare_video_init(args.dest_video, args.os)
         prepare_audio_init(args.dest_video, args.os)
-        concat_audio_video_ffmpeg(args.dest_video, args.auto_scale)
-        concat_video_segments_final(args.dest_video, args.gif_path, args.final_path, args.concat_type)
-        clean_folder(args.dest_video)
+        concat_audio_video_ffmpeg(args.dest_video, args.auto_scale, args.scale_resolution)
+        concat_video_segments_final(args.dest_video, args.gif_path, args.final_path)
+        if args.cleanup:
+            clean_folder(args.dest_video)
