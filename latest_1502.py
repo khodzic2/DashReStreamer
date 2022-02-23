@@ -120,9 +120,9 @@ def prepare_audio_init(path, osystem):
                 str(filename).__contains__("kbps")):
             m4s = filename
             m4s2 = m4s.removesuffix(".m4s")
-            path_init = os.path.join(os.sep, path + os.sep, init)
-            path_file = os.path.join(os.sep, path + os.sep, m4s)
-            path_final = os.path.join(os.sep, path + os.sep, "inited" + m4s2 + ".avi")
+            path_init = os.path.join(path, init)
+            path_file = os.path.join(path, m4s)
+            path_final = os.path.join(path, "inited" + m4s2 + ".avi")
             komanda = suffix + path_init + " " + path_file + " > " + path_final
             os.system(komanda)
 
@@ -143,10 +143,11 @@ def concat_audio_video_ffmpeg(path, auto_scale):
                 filename2 = os.fsdecode(file2)
                 if str(filename2).endswith("segment" + segment + ".mp4") and str(filename2).startswith("inited"):
                     video = str(filename2)
-                    path_video = os.path.join(os.sep, path + os.sep, video)
-                    path_audio = os.path.join(os.sep, path + os.sep, audio)
-                    path_i_video = os.path.join(os.sep, path + os.sep, "i" + video.split(".mp4")[0]+".mkv")
-                    path_final = os.path.join(os.sep, path + os.sep, "merged" + video.split(".mp4")[0]+".mkv")
+                    path_video = os.path.join(path, video)
+                    path_audio = os.path.join(path, audio)
+                    path_i_video = os.path.join(path, "i" + video.split(".mp4")[0]+".mkv")
+                    path_final = os.path.join(path, "merged" + video.split(".mp4")[0]+".mkv")
+                    print("FINAL: " + path_final)
                     komanda = "ffmpeg -fflags +genpts -i " + path_video + " -i " + path_audio + " -c copy " + path_i_video
                     os.system(komanda)
                     if not auto_scale:
@@ -216,11 +217,11 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
         stall_duration = list_stall_values[key + 1] / 1000
         stall_duration = round(stall_duration, 1)
     newname = str(sorted_dict[key]).removesuffix('.mkv') + '.jpg'
-    jpg_path = os.path.join(os.sep, path + os.sep, newname)
-    file_path = os.path.join(os.sep, path + os.sep, sorted_dict[key])
+    jpg_path = os.path.join(path, newname)
+    file_path = os.path.join(path, sorted_dict[key])
     komanda = 'ffmpeg -sseof -3 -i ' + file_path + ' -update 1 -q:v 1 ' + jpg_path
     os.system(komanda)
-    path_mp4 = os.path.join(os.sep, path + os.sep, sorted_dict[key])
+    path_mp4 = os.path.join(path, sorted_dict[key])
     result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
                              'stream=width,height,avg_frame_rate,duration', '-of', 'default=noprint_wrappers=1',
                              path_mp4], stdout=subprocess.PIPE).stdout.decode('utf-8')
@@ -229,7 +230,7 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
                               'stream=sample_rate,channel_layout,codec_name', '-of', 'default=noprint_wrappers=1',
                               path_mp4], stdout=subprocess.PIPE).stdout.decode('utf-8')
     y = helper_format_result_string(result2)
-    path_mp4s = os.path.join(os.sep, path + os.sep, 's' + sorted_dict[key])
+    path_mp4s = os.path.join(path, 's' + sorted_dict[key])
     command = 'ffmpeg -loop 1 -i ' + jpg_path + ' -f lavfi -i anullsrc=channel_layout=' + y[5].split('(')[
         0] + ':sample_rate=' + y[3] + ' -t ' + str(stall_duration) + ' -c:a ' + y[1] + ' -c:v libx264 -t ' + str(
         stall_duration) + ' -pix_fmt yuv420p -vf scale=' + x[1] + ':' + x[3] + ' -r ' + (x[5].split('/'))[
@@ -237,23 +238,23 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
     print("PROBA")
     print(command)
     os.system(command)
-    temp_path = os.path.join(os.sep, path + os.sep, "temporaryList.txt")
+    temp_path = os.path.join(path, "temporaryList.txt")
     open(temp_path, 'w').close()
     komanda = ' echo file ' + "'" + path_mp4 + "'" + '  >>  ' + temp_path
     os.system(komanda)
     komanda = ' echo file ' + "'" + path_mp4s + "'" + '  >>  ' + temp_path
     os.system(komanda)
-    path_mp4ss = os.path.join(os.sep, path + os.sep, 'ss' + sorted_dict[key])
+    path_mp4ss = os.path.join(path, 'ss' + sorted_dict[key])
     komanda = 'ffmpeg -f concat -safe 0 -i ' + temp_path + ' -c copy ' + path_mp4ss
     os.system(komanda)
-    ss_path = os.path.join(os.sep, path + os.sep, 'sss' + sorted_dict[key])
+    ss_path = os.path.join(path, 'sss' + sorted_dict[key])
     subkomanda = "'gte(t," + str(duration) + ")'"""
     print("PROBA")
     print(subkomanda)
     scale_gif = int(x[1]) //13
     komanda = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -filter_complex "[1:v]format=yuva444p,scale=%d:%d,setsar=1,rotate=PI/6:c=black@0:ow=rotw(PI/6):oh=roth(PI/6) [rotate];[0:v][rotate] overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:format=auto:shortest=1:enable='%(scale_gif, scale_gif) + subkomanda + '" -codec:a copy -y ' + ss_path
     os.system(komanda)
-    seg_path = os.path.join(os.sep, path + os.sep, "segmentList.txt")
+    seg_path = os.path.join(path, "segmentList.txt")
     komanda = ' echo file ' + "'" + ss_path + "'" + '  >>  ' + seg_path
     os.system(komanda)
     return x
@@ -263,8 +264,8 @@ def concat_video_segments_final(path, path_to_gif, path_to_file, concat_type=1):
     # create stalls and merge final video
     sorted_dict = helper_segment_list(path)
     x = helper_get_max_resolution_fps_duration(path, "merged")
-    full_path = os.path.join(os.sep, path + os.sep, "segmentList.txt")
-    max_seg_path = os.path.join(os.sep, path + os.sep, sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
+    full_path = os.path.join(path, "segmentList.txt")
+    max_seg_path = os.path.join(path, sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
     if concat_type == 0:
         komanda = ' echo file ' + "'" + max_seg_path + "'" + " >> " + full_path
         os.system(komanda)
@@ -272,12 +273,12 @@ def concat_video_segments_final(path, path_to_gif, path_to_file, concat_type=1):
         if ((key + 1) in list_stall_values.keys()):
             create_stalled_video(path, sorted_dict, key, path_to_gif, float(x[7]))
             continue
-        seg_path = os.path.join(os.sep, path + os.sep, sorted_dict[key])
+        seg_path = os.path.join(path, sorted_dict[key])
         komanda = ' echo file ' + "'" + seg_path + "'" + ' >> ' + full_path
         os.system(komanda)
     if not os.path.exists(path_to_file):
         os.makedirs(path_to_file)
-    final_path = os.path.join(os.sep, path_to_file + os.sep, 'FinalVideo.mkv')
+    final_path = os.path.join(path_to_file, 'FinalVideo.mkv')
     if concat_type == 1:
         komanda = "ffmpeg -f concat -safe 0 -i " + full_path + " -c copy " + final_path
         os.system(komanda)
@@ -285,8 +286,8 @@ def concat_video_segments_final(path, path_to_gif, path_to_file, concat_type=1):
         os.system("mkdir -p %s"%path_to_file)
         komanda = 'ffmpeg -safe 0 -f concat -segment_time_metadata 1 -i ' + full_path + ' -vf select=concatdec_select -af aselect=concatdec_select,aresample=async=1 ' + final_path
         os.system(komanda)
-        gifed_path = os.path.join(os.sep, path_to_file + os.sep, 'gifedVideo.mkv')
-        gifed_final = os.path.join(os.sep, path_to_file + os.sep, 'gifedfinalVideo.mkv')
+        gifed_path = os.path.join(path_to_file, 'gifedVideo.mkv')
+        gifed_final = os.path.join(path_to_file, 'gifedfinalVideo.mkv')
         seconds = float(x[7])
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
@@ -382,7 +383,8 @@ def download_video_segments(mpd_url, destination, osystem):
     mpd_url2 = mpd_url.rsplit("/", 1)[0]
 
     # copy location to video init file
-    komanda = " echo " + mpd_url2 + "/" + str(list_mpd_video[0]) + " >> " + full_path
+    mpd_full_path_ = os.path.join(mpd_url2, str(list_mpd_video[0]))
+    komanda = " echo " + mpd_url2 + mpd_full_path_ + " >> " + full_path
     os.system(komanda)
 
     # for every segment in log, map bandwidth with bandwidth from mpd and save server url of that segment to a file
@@ -391,7 +393,8 @@ def download_video_segments(mpd_url, destination, osystem):
             if key2 != 0:
                 if list_seg_rep_csv[key] >= key2 / 1000 * 0.95 and list_seg_rep_csv[key] <= key2 / 1000 * 1.05:
                     substring = str(list_mpd_video[key2]).replace('$Number$', str(key))
-                    komanda = " echo " + mpd_url2 + "/" + substring + " >> " + full_path
+                    mpd_full_path = os.path.join(mpd_url2, substring)
+                    komanda = " echo " + mpd_full_path + " >> " + full_path
                     os.system(komanda)
 
     # download all files to specified location
