@@ -6,6 +6,7 @@ import subprocess
 import argparse
 from mpegdash.parser import MPEGDASHParser
 import configparser
+import platform
 
 list_rep_mpd = []
 list_seg_rep_csv = dict()
@@ -93,12 +94,13 @@ def copy_audio_segments(path, destination):
                 copyfile(path_to_file, new_destination)
 
 
-def prepare_video_init(path, osystem):
+def prepare_video_init(path):
     # combines video segments with init file
     init = ""
-    if osystem == 'win':
+    osystem = platform.system()
+    if osystem == 'Windows':
         suffix = "type "
-    if osystem == 'linux':
+    if osystem == 'Linux':
         suffix = "cat "
     for file in os.listdir(path):
         filename = os.fsdecode(file)
@@ -116,13 +118,14 @@ def prepare_video_init(path, osystem):
             os.system(komanda)
 
 
-def prepare_audio_init(path, osystem):
+def prepare_audio_init(path):
     # combines audio segments with init file
     init = ""
     suffix = ""
-    if osystem == 'win':
+    osystem = platform.system()
+    if osystem == 'Windows':
         suffix = "type "
-    if osystem == 'linux':
+    if osystem == 'Linux':
         suffix = "cat "
     for file in os.listdir(path):
         filename = os.fsdecode(file)
@@ -337,7 +340,7 @@ def parse_mpd(mpd_url):
                             list_mpd_video[reps.bandwidth] = temp.media
 
 
-def download_audio_segments(mpd_url, destination, osystem):
+def download_audio_segments(mpd_url, destination):
     # downloads audio log segments from source to destination, now supports only one audio quality, it can be easily modifed to support more
 
     # creates folder and opens new file to store all audio segment urls
@@ -364,15 +367,16 @@ def download_audio_segments(mpd_url, destination, osystem):
                 os.system(komanda)
 
     # download all audio segments from server to specified location
-    if osystem == 'linux':
+    osystem = platform.system()
+    if osystem == 'Linux':
         komanda = 'wget -i ' + full_path + ' -P ' + destination
-    if osystem == 'win':
+    if osystem == 'Windows':
         os.chdir(destination)
         komanda = 'for /f "tokens=*" %a in (' + full_path + ') do curl -O %a'
     os.system(komanda)
 
 
-def download_video_segments(mpd_url, destination, osystem):
+def download_video_segments(mpd_url, destination):
     # downloads audio log segments from source to destination, now supports only one audio quality, it can be easily modifed to support more
     if not os.path.exists(destination):
         os.makedirs(destination)
@@ -398,9 +402,10 @@ def download_video_segments(mpd_url, destination, osystem):
                     os.system(komanda)
 
     # download all files to specified location
-    if osystem == 'linux':
+    osystem = platform.system()
+    if osystem == 'Linux':
         komanda = 'wget -i ' + full_path + ' -P ' + destination
-    if osystem == 'win':
+    if osystem == 'Windows':
         os.chdir(destination)
         komanda = 'for /f "tokens=*" %a in (' + full_path + ') do curl -O %a'
     os.system(komanda)
@@ -424,8 +429,6 @@ if __name__ == '__main__':
                         help='Full path to where video files are stored')
     parser.add_argument('--dest_video', dest='dest_video', type=str, default="",
                         help='Full path to working folder')
-    parser.add_argument('--os', dest='os', type=str, default='linux',
-                        help='Operating system where script is run')
     parser.add_argument('--gif_path', dest='gif_path', type=str, default="",
                         help='Full path to gif')
     parser.add_argument('--final_path', dest='final_path', type=str, default="",
@@ -462,7 +465,6 @@ if __name__ == '__main__':
         path_audio = param["path_audio"]
         path_video = param["path_video"]
         dest_video = param["dest_video"]
-        os_type = param["os"]
         gif_path = param["gif_path"]
         final_path = param["final_path"]
         mpd_path = param["mpd_path"]
@@ -474,15 +476,15 @@ if __name__ == '__main__':
         read_stalls_log(path_to_log, stall_dur_column, chunk_index_column, log_separator)
         if log_location != 'local':
             parse_mpd(mpd_path)
-            download_audio_segments(mpd_path, dest_video, os_type)
-            download_video_segments(mpd_path, dest_video, os_type)
+            download_audio_segments(mpd_path, dest_video)
+            download_video_segments(mpd_path, dest_video)
         if log_location == 'local':
             copy_init_file(path_video, dest_video)
             copy_init_file(path_audio, dest_video)
             copy_video_segments(path_video, dest_video)
             copy_audio_segments(path_audio, dest_video)
-        prepare_video_init(dest_video, os_type)
-        prepare_audio_init(dest_video, os_type)
+        prepare_video_init(dest_video)
+        prepare_audio_init(dest_video)
         concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
         concat_video_segments_final(dest_video, gif_path, final_path)
         if cleanup == "True":
@@ -493,15 +495,15 @@ if __name__ == '__main__':
         read_stalls_log(args.path_to_log, args.stall_dur_column, args.chunk_index_column, args.log_separator)
         if args.log_location != 'local':
             parse_mpd(args.log_location)
-            download_audio_segments(args.log_location, args.dest_video, args.os)
-            download_video_segments(args.log_location, args.dest_video, args.os)
+            download_audio_segments(args.log_location, args.dest_video)
+            download_video_segments(args.log_location, args.dest_video)
         if args.log_location == 'local':
             copy_init_file(args.path_video, args.dest_video)
             copy_init_file(args.path_audio, args.dest_video)
             copy_video_segments(args.path_video, args.dest_video)
             copy_audio_segments(args.path_audio, args.dest_video)
-        prepare_video_init(args.dest_video, args.os)
-        prepare_audio_init(args.dest_video, args.os)
+        prepare_video_init(args.dest_video)
+        prepare_audio_init(args.dest_video)
         concat_audio_video_ffmpeg(args.dest_video, args.auto_scale, args.scale_resolution)
         concat_video_segments_final(args.dest_video, args.gif_path, args.final_path)
         if args.cleanup == "True":
