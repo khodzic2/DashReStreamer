@@ -288,7 +288,7 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
     subkomanda = "'gte(t," + str(duration) + ")'"""
     scale_gif = int(x[1]) // 13
     komanda = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -filter_complex "[1:v]format=yuva444p,scale=%d:%d,setsar=1,rotate=PI/6:c=black@0:ow=rotw(PI/6):oh=roth(PI/6) [rotate];[0:v][rotate] overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:format=auto:shortest=1:enable=' % (
-    scale_gif, scale_gif) + subkomanda + '" -codec:a copy -y ' + ss_path
+        scale_gif, scale_gif) + subkomanda + '" -codec:a copy -y ' + ss_path
     os.system(komanda)
     seg_path = os.path.join(path, "segmentList.txt")
     komanda = ' echo file ' + "'" + ss_path + "'" + '  >>  ' + seg_path
@@ -402,7 +402,7 @@ def download_video_segments(mpd_url, destination):
     mpd_url2 = mpd_url.rsplit("/", 1)[0]
 
     # copy location to video init file
-    #mpd_full_path_ = os.path.join(os.sep,mpd_url2+os.sep, str(list_mpd_video[0]))
+    # mpd_full_path_ = os.path.join(os.sep,mpd_url2+os.sep, str(list_mpd_video[0]))
     komanda = " echo " + mpd_url2 + "/" + str(list_mpd_video[0]) + " >> " + full_path
     os.system(komanda)
 
@@ -412,7 +412,7 @@ def download_video_segments(mpd_url, destination):
             if key2 != 0:
                 if list_seg_rep_csv[key] >= key2 / 1000 * 0.95 and list_seg_rep_csv[key] <= key2 / 1000 * 1.05:
                     substring = str(list_mpd_video[key2]).replace('$Number$', str(key))
-                    #mpd_full_path = os.path.join(mpd_url2, substring)
+                    # mpd_full_path = os.path.join(mpd_url2, substring)
                     komanda = " echo " + mpd_url2 + "/" + substring + " >> " + full_path
                     os.system(komanda)
 
@@ -430,11 +430,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='This is log merger.')
     parser.add_argument('--path_to_log', dest='path_to_log', type=str, default="",
                         help='Path where video log is stored')
-    parser.add_argument('--rep_lvl_column', dest='rep_lvl_column', type=str, default="Rep_Level",
+    parser.add_argument('--rep_lvl_col', dest='rep_lvl_column', type=str, default="Rep_Level",
                         help='Column name where rep level is stored')
-    parser.add_argument('--chunk_index_column', dest='chunk_index_column', type=str, default="Chunk_Index",
+    parser.add_argument('--seg_index_col', dest='chunk_index_column', type=str, default="Chunk_Index",
                         help='Column name where chunk index is stored')
-    parser.add_argument('--stall_dur_column', dest='stall_dur_column', type=str,
+    parser.add_argument('--stall_dur_col', dest='stall_dur_column', type=str,
                         help='Column name where stall duration is stored')
     parser.add_argument('--log_separator', dest='log_separator', type=str, default="csv",
                         help='Separator tyle, tab or csv')
@@ -458,7 +458,7 @@ if __name__ == '__main__':
                         help='Specifies how parameters are sent to script - path for sending parameters in console while calling script, and config for seting parameters in .ini file ')
     parser.add_argument("--config_path", dest='config_path', type=str, default="",
                         help='Path to where .ini config file is stored ')
-    parser.add_argument("--cleanup", dest='cleanup', type=bool, default=False,
+    parser.add_argument("--cleanup", dest='cleanup', type=str, default="False",
                         help='If True all files except final video in dest_video deleted')
     parser.add_argument("--scale_resolution", dest='scale_resolution', type=str,
                         help='720p, 1080p, 1440p or 2160p, auto_scale should be set to 2')
@@ -470,18 +470,35 @@ if __name__ == '__main__':
     if args.par_type == 'config':
 
         config_obj = configparser.ConfigParser()
-        config_obj.read(args.config_path)
+        print(args.config_path)
+        if not os.path.isabs(args.config_path):
+            print("TRUE")
+            config_path = os.path.abspath(args.config_path)
+        print(config_path)
+        config_obj.read(config_path)
         param = config_obj["parameters"]
         path_to_log = param["path_to_log"]
-        rep_lvl_column = param["rep_lvl_column"]
-        chunk_index_column = param["chunk_index_column"]
-        stall_dur_column = param["stall_dur_column"]
+        if not os.path.isabs(path_to_log):
+            path_to_log = os.path.abspath(path_to_log)
+        rep_lvl_column = param["rep_lvl_col"]
+        chunk_index_column = param["seg_index_col"]
+        stall_dur_column = param["stall_dur_col"]
         log_separator = param["log_separator"]
         path_audio = param["path_audio"]
+        if not os.path.isabs(path_audio):
+            path_audio = os.path.abspath(path_audio)
         path_video = param["path_video"]
+        if not os.path.isabs(path_video):
+            path_video = os.path.abspath(path_video)
         dest_video = param["dest_video"]
+        if not os.path.isabs(dest_video):
+            dest_video = os.path.abspath(dest_video)
         gif_path = param["gif_path"]
+        if not os.path.isabs(gif_path):
+            gif_path = os.path.abspath(gif_path)
         final_path = param["final_path"]
+        if not os.path.isabs(final_path):
+            final_path  = os.path.abspath(final_path )
         mpd_path = param["mpd_path"]
         auto_scale = int(param["auto_scale"])
         log_location = param["log_location"]
@@ -506,20 +523,41 @@ if __name__ == '__main__':
             clean_folder(dest_video)
 
     if args.par_type == 'path':
-        read_replevels_log(args.path_to_log, args.rep_lvl_column, args.chunk_index_column, args.log_separator)
-        read_stalls_log(args.path_to_log, args.stall_dur_column, args.chunk_index_column, args.log_separator)
+        path_to_log=args.path_to_log
+        if not os.path.isabs(args.path_to_log):
+            path_to_log  = os.path.abspath(args.path_to_log)
+        dest_video=args.dest_video
+        if not os.path.isabs(args.dest_video):
+            dest_video = os.path.abspath(args.dest_video)
+        path_video=args.path_video
+        if not os.path.isabs(args.path_video):
+            path_video = os.path.abspath(args.path_video)
+        path_audio=args.path_audio
+        if not os.path.isabs(args.path_audio):
+            path_audio = os.path.abspath(args.path_audio)
+        log_location=args.log_location
+        if not os.path.isabs(args.log_location):
+            log_location = os.path.abspath(args.log_location)
+        gif_path=args.gif_path
+        if not os.path.isabs(args.gif_path):
+            gif_path = os.path.abspath(args.gif_path)
+        final_path=args.final_path
+        if not os.path.isabs(args.final_path):
+            final_path = os.path.abspath(args.final_path)
+        read_replevels_log(path_to_log, args.rep_lvl_column, args.chunk_index_column, args.log_separator)
+        read_stalls_log(path_to_log, args.stall_dur_column, args.chunk_index_column, args.log_separator)
         if args.log_location != 'local':
-            parse_mpd(args.log_location)
-            download_audio_segments(args.log_location, args.dest_video)
-            download_video_segments(args.log_location, args.dest_video)
+            parse_mpd(log_location)
+            download_audio_segments(log_location, dest_video)
+            download_video_segments(log_location, dest_video)
         if args.log_location == 'local':
-            copy_init_file(args.path_video, args.dest_video)
-            copy_init_file(args.path_audio, args.dest_video)
-            copy_video_segments(args.path_video, args.dest_video)
-            copy_audio_segments(args.path_audio, args.dest_video)
-        prepare_video_init(args.dest_video)
-        prepare_audio_init(args.dest_video)
-        concat_audio_video_ffmpeg(args.dest_video, args.auto_scale, args.scale_resolution)
-        concat_video_segments_final(args.dest_video, args.gif_path, args.final_path)
+            copy_init_file(path_video, dest_video)
+            copy_init_file(path_audio, dest_video)
+            copy_video_segments(path_video, dest_video)
+            copy_audio_segments(path_audio, dest_video)
+        prepare_video_init(dest_video)
+        prepare_audio_init(dest_video)
+        concat_audio_video_ffmpeg(dest_video, args.auto_scale, args.scale_resolution)
+        concat_video_segments_final(dest_video, gif_path, final_path)
         if args.cleanup == "True":
-            clean_folder(args.dest_video)
+            clean_folder(dest_video)

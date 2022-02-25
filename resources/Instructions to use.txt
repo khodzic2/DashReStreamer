@@ -1,0 +1,12 @@
+To run this test scenario use this terminal command:
+
+python .\video_log_merger.py --parameter_type="config" --config_path="resources/config.ini"
+
+This is example of how to run a script with scenario of segments downloaded from server using mpd file,
+using config file to send parameters, and config.ini, gif.gif, and log.txt stored in resources folder.
+Paths to them are send as relative paths, in general case, if files and folder are not in the working folder
+use apsolute paths as parameters. Cleanup is "True" so all help except final video is deleted, to save it set
+cleanup parameter as "False". For mpd url is used - http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full/dash_video_audio.mpd.
+For other scenarios user can also send parameters from path, or specify paths to where segments are stored locally if so.
+
+Install necessary modules from requirements.txt and also ffmpeg from official site and set it as enviroment variable.
