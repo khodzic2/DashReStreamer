@@ -1,3 +1,5 @@
+Unzip logMerger.zip
+
 Install necessary modules from requirements.txt and also ffmpeg from official site and set it as enviroment variable.
 
 
