@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #    This program is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU General Public License
 #    as published by the Free Software Foundation; either version 2
@@ -125,7 +126,7 @@ def prepare_video_init(path):
         filename = os.fsdecode(file)
         if str(filename).__contains__("kbps"):
             m4s = filename
-            m4s2 = m4s.removesuffix(".m4s")
+            m4s2 = m4s.split(".m4s")[0] #  .removesuffix(".m4s")
             path_init = os.path.join(path, init)
             path_file = os.path.join(path, m4s)
             path_final = os.path.join(path, "inited" + m4s2 + ".mp4")
@@ -151,7 +152,7 @@ def prepare_audio_init(path):
         if not (str(filename).__contains__("segment_init")) and str(filename).__contains__("segment") and not (
                 str(filename).__contains__("kbps")):
             m4s = filename
-            m4s2 = m4s.removesuffix(".m4s")
+            m4s2 = m4s.split(".m4s")[0] #  .removesuffix(".m4s")
             path_init = os.path.join(path, init)
             path_file = os.path.join(path, m4s)
             path_final = os.path.join(path, "inited" + m4s2 + ".avi")
@@ -207,19 +208,18 @@ def helper_get_max_resolution_fps_duration(path, prefix):
     for file in os.listdir(path):
         filename = os.fsdecode(file)
         if str(filename).endswith(suffix) and str(filename).startswith(prefix):
-            segment = re.search("(\d+)(?!.*\d)", filename.removesuffix(suffix)).group(1)
+            segment = re.search("(\d+)(?!.*\d)", filename.split(suffix)[0]).group(1) # .removesuffix(suffix)).group(1)
             list_inter_names2[int(segment)] = str(filename)
     sorted_dict = dict(sorted(list_inter_names2.items()))
     segment = (
         sorted_dict[
             list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
 
-    komanda = "ffmpeg -i " + os.path.join(path, segment) + " -codec copy " + os.path.join(path, segment.removesuffix(
-        ".mkv") + ".mp4")
+    komanda = "ffmpeg -i " + os.path.join(path, segment) + " -codec copy " + os.path.join(path, segment.split(".mkv")[0] + ".mp4") # .removesuffix(".mkv")
     segment_path = os.path.join(path, segment)
     if suffix == ".mkv":
         os.system(komanda)
-        segment_path = os.path.join(path, segment.removesuffix(".mkv") + ".mp4")
+        segment_path = os.path.join(path, segment.split(".mkv")[0] + ".mp4") # .removesuffix(".mkv")
 
     result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
                              'stream=width,height,avg_frame_rate,duration', '-of',
@@ -243,7 +243,7 @@ def helper_segment_list(path):
     for file in os.listdir(path):
         filename = os.fsdecode(file)
         if str(filename).endswith(".mkv") and str(filename).startswith("merged"):
-            segment = re.search("(\d+)(?!.*\d)", filename.removesuffix(".mkv")).group(1)
+            segment = re.search("(\d+)(?!.*\d)", filename.split(".mkv")[0]).group(1) # .removesuffix(".mkv")
             list_inter_names[int(segment)] = str(filename)
     sorted_dict = dict(sorted(list_inter_names.items()))
     return sorted_dict
@@ -255,7 +255,7 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
     if list_stall_values[key + 1] != 0:
         stall_duration = list_stall_values[key + 1] / 1000
         stall_duration = round(stall_duration, 1)
-    newname = str(sorted_dict[key]).removesuffix('.mkv') + '.jpg'
+    newname = str(sorted_dict[key]).split('.mkv')[0] + '.jpg' # .removesuffix('.mkv')
     jpg_path = os.path.join(path, newname)
     file_path = os.path.join(path, sorted_dict[key])
     komanda = 'ffmpeg -sseof -3 -i ' + file_path + ' -update 1 -q:v 1 ' + jpg_path
@@ -310,7 +310,8 @@ def concat_video_segments_final(path, path_to_gif, path_to_file):
         os.system(komanda)
     if not os.path.exists(path_to_file):
         os.makedirs(path_to_file)
-    final_path = os.path.join(path_to_file, 'FinalVideo.mkv')
+    print (path_to_log.split("."))
+    final_path = os.path.join(path_to_file, path_to_log.split(".")[-2].split(os.sep)[-1]+"_"+"video.mkv")
     komanda = "ffmpeg -f concat -safe 0 -i " + full_path + " -c copy " + final_path
     os.system(komanda)
 
