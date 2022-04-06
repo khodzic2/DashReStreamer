@@ -306,7 +306,7 @@ def concat_video_segments_final(path, path_to_gif, path_to_file):
             create_stalled_video(path, sorted_dict, key, path_to_gif, float(x[7]))
             continue
         seg_path = os.path.join(path, sorted_dict[key])
-        komanda = ' echo file ' + "'" + seg_path + "'" + ' >> ' + full_path
+        komanda = 'echo file ' + "'" + seg_path + "'" + ' >> ' + full_path
         os.system(komanda)
     if not os.path.exists(path_to_file):
         os.makedirs(path_to_file)
