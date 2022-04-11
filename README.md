@@ -11,9 +11,9 @@ Contents:
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Logging](#logging)
+- [Example](#example)
 - [Caveats](#caveats)
-- [Acknowledgements](#acknowledgements)
+- [Video Dataset](#videodataset)
 
 
 
@@ -73,4 +73,22 @@ Install Dependencies
 	--config_path	Path to where .ini config file is stored
 	--cleanup	If True all files except final video in dest_video deleted
 	--scale_resolution	720p, 1080p, 1440p or 2160p, auto_scale should be set to 2
+	
+## Example 
 
+	python video_log_merger.py --parameter_type config --config_path resources/config.ini
+	
+
+This is example of how to run a script with scenario of segments downloaded from server using mpd file, using config file to send parameters, and **config.ini**, **gif.gif**, and **log.txt** stored in <resources> folder. Paths to them are send as relative paths. In general case, if files and folder are not in the working folder use apsolute paths as parameters. Cleanup is <True> so all intermediate files except final video is deleted. If  intermediate files are needed for analysis, set cleanup parameter as <False>. MPD URL: <http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full/dash_video_audio.mpd>. For other scenarios user can also send parameters from path, or specify paths to where segments are stored locally.
+
+
+## Caveats
+
+- DashReStreamer is tested on video content splited in physical segments (profile full).
+- Software is tested with following video dataset: <https://www.ucc.ie/en/misl/research/datasets/ivid_dataset/> and <https://www.ucc.ie/en/misl/research/datasets/ivid_uhd_dataset/>.
+- TODO: add support for byte range DASH content.
+
+
+## Video Dataset
+
+We provide an extensive dataset containing video sequences created over 3G, 4G and WiFi networks. In total, 234 video sequences were generated with a duration of 5 minutes. The dataset contains video logs and bandwidth traces used for the video sequence generation. These video sequences are suitable for subjective QoE evaluation, and can aid in the better understanding of user experience in different scenarios. Dataset can be found at: <https://shorturl.at/dtISV>
