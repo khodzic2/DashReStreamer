@@ -56,21 +56,21 @@ Install Dependencies
 	
 	
 	
-	--path_to_log Path where video log is stored
-	--rep_lvl_col Column name where rep level is stored
-	--seg_index_col Column name where chunk index is stored
-	--stall_dur_col Column name where stall duration is stored
-	--log_separator Separator style, tab or csv
-	--path_audio Full path to where audio files are stored
-	--path_video Full path to where video files are stored
-	--dest_video Full path to working folder
-	--gif_path Full path to gif
-	--final_path Full path to place where to store final video
-	--mpd_path URL where mpd with audio and video is
-	--auto_scale If auto scale option is 0 it is off, if 1 then all video segments are rescaled to resolution of highest quality segment, if 2 aditional parameter scale_resolution is read
-	--log_location local is for locally downloaded segments, mpd link is to download segments from server, where full link is sent as parameter
-	--parameter_type Specifies how parameters are sent to script - path for sending parameters in console while calling script, and config for seting parameters in .ini file
-	--config_path Path to where .ini config file is stored
-	--cleanup If True all files except final video in dest_video deleted
-	--scale_resolution 720p, 1080p, 1440p or 2160p, auto_scale should be set to 2
+	--path_to_log	Path where video log is stored
+	--rep_lvl_col	Column name where rep level is stored
+	--seg_index_col	Column name where chunk index is stored
+	--stall_dur_col	Column name where stall duration is stored
+	--log_separator	Separator style, tab or csv
+	--path_audio	Full path to where audio files are stored
+	--path_video	Full path to where video files are stored
+	--dest_video	Full path to working folder
+	--gif_path	Full path to gif
+	--final_path	Full path to place where to store final video
+	--mpd_path	URL where mpd with audio and video is
+	--auto_scale	If auto scale option is 0 it is off, if 1 then all video segments are rescaled to resolution of highest quality segment, if 2 aditional parameter scale_resolution is read
+	--log_location	local is for locally downloaded segments, mpd link is to download segments from server, where full link is sent as parameter
+	--parameter_type	Specifies how parameters are sent to script - path for sending parameters in console while calling script, and config for seting parameters in .ini file
+	--config_path	Path to where .ini config file is stored
+	--cleanup	If True all files except final video in dest_video deleted
+	--scale_resolution	720p, 1080p, 1440p or 2160p, auto_scale should be set to 2
 
