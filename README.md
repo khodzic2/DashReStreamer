@@ -40,21 +40,33 @@ Install Dependencies
 ## Usage
 
 	Usage:
-    python video_log_merger.py    --path_to_log <input> --path_audio <colname> -o <output>
-                [-v <vcodec>] [-a <acodec>]
-                [-x <pixfmt>]
-                [-s <spinner>] [--disable-spinner] [-p <speed>]
-                [-t <trim>]
-                [-r <brightness>]
-                [-l <blur>]
-                [--audio-disable]
-                [--black-frame]
-                [--force-framerate]
-                [--skipping]
-                [--verbose] [--version]
 	
+	scenario with config file: 
 	
+	python video_log_merger.py --parameter_type config --config_path <input>
 	
+	scenario with sending parameters from terminal and downloading segments via mpd file:
+        
+	python video_log_merger.py --parameter_type path --log_location mpd --mpd_path <input> --path_to_log <input> --dest_video <input> --gif_path <input> --    final_path <input>
+	
+        scenario with sending parameters from terminal and segments stored locally:
+	
+        python video_log_merger.py --parameter_type path --log_location local --path_to_log <input> --path_audio <input> --path_video <input> --dest_video <input> --gif_path <input> --final_path <input>
+
+	
+                [--path_to_log]
+		[--log_location] 
+		[--rep_lvl_col]
+                [--stall_dur_col]
+		[--log_separator]
+		[--config_path]
+		[--cleanup]
+		[--auto_scale]
+		[--scale_resolution]
+		[--mpd_path]
+		[--path_audio]
+		[--path_video]
+		[--log_location]
 	
 	
 	--path_to_log	Path where video log is stored
@@ -62,11 +74,11 @@ Install Dependencies
 	--seg_index_col	Column name where chunk index is stored
 	--stall_dur_col	Column name where stall duration is stored
 	--log_separator	Separator style, tab or csv
-	--path_audio	Full path to where audio files are stored
-	--path_video	Full path to where video files are stored
-	--dest_video	Full path to working folder
-	--gif_path	Full path to gif
-	--final_path	Full path to place where to store final video
+	--path_audio	Full or relative path to where audio files are stored
+	--path_video	Full or relative path to where video files are stored
+	--dest_video	Full or relative path to working folder
+	--gif_path	Full or relative path to gif
+	--final_path	Full or relative path to place where to store final video
 	--mpd_path	URL where mpd with audio and video is
 	--auto_scale	If auto scale option is 0 it is off, if 1 then all video segments are rescaled to resolution of highest quality segment, if 2 aditional parameter scale_resolution is read
 	--log_location	local is for locally downloaded segments, mpd link is to download segments from server, where full link is sent as parameter
