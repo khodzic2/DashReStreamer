@@ -53,8 +53,7 @@ Install Dependencies
 	
         python video_log_merger.py --parameter_type path --log_location local --path_to_log <input> --path_audio <input> --path_video <input> --dest_video <input> --gif_path <input> --final_path <input>
 
-	
-                [--path_to_log]
+		[--path_to_log]
 		[--log_location] 
 		[--rep_lvl_col]
                 [--stall_dur_col]
