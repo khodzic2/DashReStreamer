@@ -56,7 +56,7 @@ Install Dependencies
 		[--path_to_log]
 		[--log_location] 
 		[--rep_lvl_col]
-                [--stall_dur_col]
+		[--stall_dur_col]
 		[--log_separator]
 		[--config_path]
 		[--cleanup]
