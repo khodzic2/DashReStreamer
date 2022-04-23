@@ -5,7 +5,7 @@ DashReStreamer is a framework for generating test video sequences with encoded s
 
 Authors: Kerim Hodzic <kerim.hodzic@etf.unsa.ba>, Mirsad Cosovic <mcosovic@etf.unsa.ba>, Sasa Mrdovic <smrdovic@etf.unsa.ba>, Jason J. Quinlan <j.quinlan@cs.ucc.ie>, and Darijo Raca <draca@etf.unsa.ba>.
 
-![](bbb_ex1.gif)
+![](./resources/bbb_ex1.gif)
 
 Contents:
 

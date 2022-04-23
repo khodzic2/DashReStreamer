@@ -23,6 +23,7 @@ import argparse
 from mpegdash.parser import MPEGDASHParser
 import configparser
 import platform
+from datetime import datetime
 
 list_rep_mpd = []
 list_seg_rep_csv = dict()
@@ -32,6 +33,8 @@ list_mpd_audio = dict()
 list_mpd_video = dict()
 list_resolutions = dict()
 
+# get the current date
+date = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
 
 def fill_resolution_dict():
     list_resolutions["720p"] = [1280, 720]
@@ -116,7 +119,10 @@ def prepare_video_init(path):
     osystem = platform.system()
     if osystem == 'Windows':
         suffix = "type "
-    if osystem == 'Linux':
+    elif osystem == 'Linux':
+        suffix = "cat "
+    # add for mac :)
+    else:
         suffix = "cat "
     for file in os.listdir(path):
         filename = os.fsdecode(file)
@@ -141,7 +147,9 @@ def prepare_audio_init(path):
     osystem = platform.system()
     if osystem == 'Windows':
         suffix = "type "
-    if osystem == 'Linux':
+    elif osystem == 'Linux':
+        suffix = "cat "
+    else:
         suffix = "cat "
     for file in os.listdir(path):
         filename = os.fsdecode(file)
@@ -386,9 +394,12 @@ def download_audio_segments(mpd_url, destination):
     osystem = platform.system()
     if osystem == 'Linux':
         komanda = 'wget -i ' + full_path + ' -P ' + destination
-    if osystem == 'Windows':
+    elif osystem == 'Windows':
         os.chdir(destination)
         komanda = 'for /f "tokens=*" %a in (' + full_path + ') do curl -O %a'
+    # add option for mac :)
+    else:
+        komanda = 'wget -i ' + full_path + ' -P ' + destination
     os.system(komanda)
 
 
@@ -421,9 +432,12 @@ def download_video_segments(mpd_url, destination):
     osystem = platform.system()
     if osystem == 'Linux':
         komanda = 'wget -i ' + full_path + ' -P ' + destination
-    if osystem == 'Windows':
+    elif osystem == 'Windows':
         os.chdir(destination)
         komanda = 'for /f "tokens=*" %a in (' + full_path + ') do curl -O %a'
+    # add option for mac :)
+    else:
+        komanda = 'wget -i ' + full_path + ' -P ' + destination
     os.system(komanda)
 
 
@@ -435,7 +449,7 @@ if __name__ == '__main__':
                         help='Column name where rep level is stored')
     parser.add_argument('--seg_index_col', dest='chunk_index_column', type=str, default="Chunk_Index",
                         help='Column name where chunk index is stored')
-    parser.add_argument('--stall_dur_col', dest='stall_dur_column', type=str,
+    parser.add_argument('--stall_dur_col', dest='stall_dur_column', type=str, default="Stall_Dur",
                         help='Column name where stall duration is stored')
     parser.add_argument('--log_separator', dest='log_separator', type=str, default="csv",
                         help='Separator tyle, tab or csv')
@@ -443,18 +457,18 @@ if __name__ == '__main__':
                         help='Full path to where audio files are stored')
     parser.add_argument('--path_video', dest='path_video', type=str, default="",
                         help='Full path to where video files are stored')
-    parser.add_argument('--dest_video', dest='dest_video', type=str, default="",
+    parser.add_argument('--dest_video', dest='dest_video', type=str, default="output_files/resources/segments",
                         help='Full path to working folder')
-    parser.add_argument('--gif_path', dest='gif_path', type=str, default="",
+    parser.add_argument('--gif_path', dest='gif_path', type=str, default="resources/gif.gif",
                         help='Full path to gif')
-    parser.add_argument('--final_path', dest='final_path', type=str, default="",
+    parser.add_argument('--final_path', dest='final_path', type=str, default="output_files/resources/segments/final",
                         help='Full path to place where to store final video')
     parser.add_argument("--mpd_path", dest='mpd_path', type=str, default="",
                         help='URL where mpd with audio and video is')
     parser.add_argument("--auto_scale", dest='auto_scale', type=int, default=0,
                         help='If auto scale option is 0 it is off, if 1 then all video segments are rescaled to resolution of highest quality segment, if 2 aditional parameter scale_resolution is read')
     parser.add_argument("--log_location", dest='log_location', type=str, default='local',
-                        help='local is for locally downloaded segments, mpd link is to download segments from server, where full link is sent as parameter ')
+                        help="'local' is for locally downloaded segments, 'mpd' link is to download segments from server, where full link is sent as parameter ")
     parser.add_argument("--parameter_type", dest='par_type', type=str, default='config',
                         help='Specifies how parameters are sent to script - path for sending parameters in console while calling script, and config for seting parameters in .ini file ')
     parser.add_argument("--config_path", dest='config_path', type=str, default="",
@@ -491,13 +505,18 @@ if __name__ == '__main__':
         path_video = param["path_video"]
         if not os.path.isabs(path_video):
             path_video = os.path.abspath(path_video)
-        dest_video = param["dest_video"]
+        # code to add date into the folder structure
+        dest_video=param["dest_video"]+"/"+date
         if not os.path.isabs(dest_video):
             dest_video = os.path.abspath(dest_video)
         gif_path = param["gif_path"]
         if not os.path.isabs(gif_path):
             gif_path = os.path.abspath(gif_path)
-        final_path = param["final_path"]
+        # code to add date into the final folder structure
+        final_path_list=param["final_path"].split("/")
+        final_path_list.insert(len(final_path_list)-1, date)
+        final_path_list = [val+"/" for val in final_path_list]
+        final_path="".join(final_path_list)
         if not os.path.isabs(final_path):
             final_path  = os.path.abspath(final_path )
         mpd_path = param["mpd_path"]
@@ -527,7 +546,8 @@ if __name__ == '__main__':
         path_to_log=args.path_to_log
         if not os.path.isabs(args.path_to_log):
             path_to_log  = os.path.abspath(args.path_to_log)
-        dest_video=args.dest_video
+        # code to add date into the folder structure
+        dest_video=args.dest_video+"/"+date
         if not os.path.isabs(args.dest_video):
             dest_video = os.path.abspath(args.dest_video)
         path_video=args.path_video
@@ -542,7 +562,11 @@ if __name__ == '__main__':
         gif_path=args.gif_path
         if not os.path.isabs(args.gif_path):
             gif_path = os.path.abspath(args.gif_path)
-        final_path=args.final_path
+        # code to add date into the final folder structure
+        final_path_list=args.final_path.split("/")
+        final_path_list.insert(len(final_path_list)-1, date)
+        final_path_list = [val+"/" for val in final_path_list]
+        final_path="".join(final_path_list)
         if not os.path.isabs(args.final_path):
             final_path = os.path.abspath(args.final_path)
         read_replevels_log(path_to_log, args.rep_lvl_column, args.chunk_index_column, args.log_separator)
