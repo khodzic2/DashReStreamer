@@ -99,7 +99,7 @@ This is example of how to run a script with scenario of segments downloaded from
 ## Caveats
 
 - DashReStreamer is tested on video content splited in physical segments (profile full).
-- Software is tested with following video dataset: <https://www.ucc.ie/en/misl/research/datasets/ivid_dataset/> and <https://www.ucc.ie/en/misl/research/datasets/ivid_uhd_dataset/>.
+- Software is tested with following video datasets: <https://www.ucc.ie/en/misl/research/datasets/ivid_dataset/> and <https://www.ucc.ie/en/misl/research/datasets/ivid_uhd_dataset/>.
 - TODO: add support for byte range DASH content.
 
 
