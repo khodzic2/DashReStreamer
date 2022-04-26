@@ -1,0 +1,30 @@
+
+We also offer a docker container encompassing a working copy of DashReStreamer.
+
+The initial release is v0.1.0
+
+step 1 - start docker on your operating system
+look here for install/build options https://docs.docker.com/desktop/
+
+step 2 - pull the jjq52021/dash_re_streamer container(s)
+options available for arm64 and amd64 architectures
+docker pull jjq52021/dash_re_streamer (default amd64)
+docker pull jjq52021/dash_re_streamer_arm64
+docker pull jjq52021/dash_re_streamer_amd64
+
+step 3 - run the container while linking the container to the 4K_dataset (or any content you wish)
+this also takes into consideration the config file, so you can change the mpd urls or any other config.ini param, and other params, as needed
+docker run -d -it --name dash_re_streamer \
+-v "$(pwd)"/logMerger/input_files/4K_dataset:/home/logMerger/4K_dataset:ro \
+-v "$(pwd)"/logMerger/input_files/config.ini:/home/logMerger/input_files/config.ini jjq52021/dash_re_streamer
+
+step 4 - now attach the container to your terminal
+docker attach dash_re_streamer
+
+step 5 - run this command in the container
+python3 ./video_log_merger.py --config_path ./resources/config.ini
+
+step 6 - recover generated file
+Assuming you do not change the params in the config.ini file, an output file, "log_short_video.mkv", will created in "./output_files/resources/segments/<date of test>/final"
+
+Enjoy :)

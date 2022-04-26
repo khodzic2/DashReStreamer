@@ -106,3 +106,8 @@ This is example of how to run a script with scenario of segments downloaded from
 ## Dataset
 
 We provide an extensive dataset containing video sequences created over 3G, 4G and WiFi networks. In total, 234 video sequences were generated with a duration of 5 minutes. The dataset contains video logs and bandwidth traces used for the video sequence generation. These video sequences are suitable for subjective QoE evaluation, and can aid in the better understanding of user experience in different scenarios. Dataset can be found at: <https://shorturl.at/dtISV>
+
+
+## Docker Container of DashReStreamer
+
+A docker container of DashReStreamer is available, please read the build/install/run instructions in the docker folder. 
