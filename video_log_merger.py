@@ -24,6 +24,8 @@ from mpegdash.parser import MPEGDASHParser
 import configparser
 import platform
 from datetime import datetime
+import httplib2
+
 
 list_rep_mpd = []
 list_seg_rep_csv = dict()
@@ -137,6 +139,7 @@ def prepare_video_init(path):
             path_file = os.path.join(path, m4s)
             path_final = os.path.join(path, "inited" + m4s2 + ".mp4")
             komanda = suffix + path_init + " " + path_file + " > " + path_final
+            print(komanda)
             os.system(komanda)
 
 
@@ -153,7 +156,7 @@ def prepare_audio_init(path):
         suffix = "cat "
     for file in os.listdir(path):
         filename = os.fsdecode(file)
-        if str(filename).__contains__("segment_init"):
+        if str(filename).__contains__("segment_init") or (filename.__contains__("audio_dashinit")):
             init = filename
     for file in os.listdir(path):
         filename = os.fsdecode(file)
@@ -363,7 +366,6 @@ def parse_mpd(mpd_url):
                         if temp.media is not None:
                             list_mpd_video[reps.bandwidth] = temp.media
 
-
 def download_audio_segments(mpd_url, destination):
     # downloads audio log segments from source to destination, now supports only one audio quality, it can be easily modifed to support more
 
@@ -440,6 +442,78 @@ def download_video_segments(mpd_url, destination):
         komanda = 'wget -i ' + full_path + ' -P ' + destination
     os.system(komanda)
 
+def check_abs_url(url):
+    if not os.path.isabs(url):
+        url = os.path.abspath(url)
+    return url
+
+def parse_mpd_bytecode(mpd_url, destination):
+    # parses mpd from given url, and saves all audio and video media links into list_mpd_audio and list_mpd_video dictionaries
+    # mpd_url = 'http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full/dash_video_audio.mpd'
+    print(mpd_url)
+    mpd = MPEGDASHParser.parse(mpd_url)
+    print(mpd)
+    init_video = True
+    init_audio = True
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+
+    # for every segment in log, map bandwidth with bandwidth from mpd and save server url of that segment to a file
+    for key in list_seg_rep_csv:
+        print(key)
+        for period in mpd.periods:
+            for adapt_set in period.adaptation_sets:
+                #download video init file once
+                if "video" in adapt_set.representations[0].mime_type:
+                    if (init_video):
+                        init_name=adapt_set.segment_lists[0].initializations[0].source_url
+                        mpd_url2 = mpd_url.rsplit("/", 1)[0]
+                        mpd_url_final=mpd_url2+"/"+init_name
+                        filepath = os.path.join(destination, init_name)
+                        komanda = 'curl.exe ' + mpd_url_final + ' --output ' + filepath
+                        os.system(komanda)
+                        init_video=False
+                    for representation in adapt_set.representations:
+                        #maps bandwidth from mpd with bandwidth from video log file
+                        if (list_seg_rep_csv[key] >= representation.bandwidth / 1000 * 0.95 and list_seg_rep_csv[key] <= representation.bandwidth / 1000 * 1.05):
+                            #get base_url for that representation
+                            base_url=representation.base_urls[0].base_url_value
+                            #get full url of a segment to download
+                            mpd_url2 = mpd_url.rsplit("/", 1)[0]
+                            mpd_url_final = mpd_url2 + "/" + representation.base_urls[0].base_url_value
+                            #get last part of base url for segment file name to save locally - bbb_1920x1080_60fps_4300kbps_dash.mp4 and change extension to m4s
+                            segment_name=base_url.rsplit("/", 2)[2]
+                            segment_name_final=segment_name.split(".mp4")[0] + "_segment" + str(key) + ".m4s"
+                            #get media range of a specific segment
+                            range=representation.segment_lists[0].segment_urls[key-1].media_range
+                            #create final path to save file locally
+                            final_url=os.path.join(destination,segment_name_final)
+                            komanda = 'curl.exe ' + mpd_url_final + ' -i -H ' + '"Range: bytes=' + range + '" ' + ' --output '  + final_url
+                            #print(komanda)
+                            os.system(komanda)
+                # download audio init file once
+                if "audio" in adapt_set.representations[0].mime_type:
+                    if (init_audio):
+                        init_name=adapt_set.representations[0].base_urls[0].base_url_value
+                        mpd_url2 = mpd_url.rsplit("/", 1)[0]
+                        mpd_url_final=mpd_url2+"/"+init_name
+                        filepath = os.path.join(destination, init_name)
+                        komanda = 'curl.exe ' + mpd_url_final + ' --output ' + filepath
+                        #print(komanda)
+                        os.system(komanda)
+                        init_audio=False
+                    #get base url for audio segments
+                    base_url = adapt_set.representations[0].base_urls[0].base_url_value
+                    mpd_url2 = mpd_url.rsplit("/", 1)[0]
+                    mpd_url_final = mpd_url2 + "/" + base_url
+                    #get media range of specific segment
+                    range = adapt_set.representations[0].segment_lists[0].segment_urls[key-1].media_range
+                    segment_name="segment_" + str(key) + ".m4s"
+                    #get final url to save segment locally
+                    final_url = os.path.join(destination, segment_name)
+                    komanda = 'curl.exe ' + mpd_url_final + ' -i -H ' + '"Range: bytes=' + range + '" ' + ' --output ' + final_url
+                    #print(komanda)
+                    os.system(komanda)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='This is log merger.')
@@ -483,42 +557,32 @@ if __name__ == '__main__':
     fill_resolution_dict()
 
     if args.par_type == 'config':
-
         config_obj = configparser.ConfigParser()
-        print(args.config_path)
-        if not os.path.isabs(args.config_path):
-            print("TRUE")
-            config_path = os.path.abspath(args.config_path)
-        print(config_path)
+        config_path = args.config_path
+        config_path = check_abs_url(config_path)
         config_obj.read(config_path)
         param = config_obj["parameters"]
         path_to_log = param["path_to_log"]
-        if not os.path.isabs(path_to_log):
-            path_to_log = os.path.abspath(path_to_log)
+        path_to_log = check_abs_url(path_to_log)
         rep_lvl_column = param["rep_lvl_col"]
         chunk_index_column = param["seg_index_col"]
         stall_dur_column = param["stall_dur_col"]
         log_separator = param["log_separator"]
         path_audio = param["path_audio"]
-        if not os.path.isabs(path_audio):
-            path_audio = os.path.abspath(path_audio)
+        path_audio=check_abs_url(path_audio)
         path_video = param["path_video"]
-        if not os.path.isabs(path_video):
-            path_video = os.path.abspath(path_video)
+        path_video = check_abs_url(path_video)
         # code to add date into the folder structure
         dest_video=param["dest_video"]+"/"+date
-        if not os.path.isabs(dest_video):
-            dest_video = os.path.abspath(dest_video)
+        dest_video=check_abs_url(dest_video)
         gif_path = param["gif_path"]
-        if not os.path.isabs(gif_path):
-            gif_path = os.path.abspath(gif_path)
+        gif_path=check_abs_url(gif_path)
         # code to add date into the final folder structure
         final_path_list=param["final_path"].split("/")
         final_path_list.insert(len(final_path_list)-1, date)
         final_path_list = [val+"/" for val in final_path_list]
         final_path="".join(final_path_list)
-        if not os.path.isabs(final_path):
-            final_path  = os.path.abspath(final_path )
+        final_path=check_abs_url(final_path)
         mpd_path = param["mpd_path"]
         auto_scale = int(param["auto_scale"])
         log_location = param["log_location"]
@@ -526,49 +590,47 @@ if __name__ == '__main__':
         scale_resolution = param["scale_resolution"]
         read_replevels_log(path_to_log, rep_lvl_column, chunk_index_column, log_separator)
         read_stalls_log(path_to_log, stall_dur_column, chunk_index_column, log_separator)
+        print (list_seg_rep_csv)
+        print (list_stall_values)
         if log_location != 'local':
-            parse_mpd(mpd_path)
-            download_audio_segments(mpd_path, dest_video)
-            download_video_segments(mpd_path, dest_video)
+            #parse_mpd(mpd_path)
+            #parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full_byte_range/bbb_enc_x264_dash.mpd", dest_video)
+            parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full_byte_range/dash_video_audio.mpd", dest_video)
+
+            #download_audio_segments(mpd_path, dest_video)
+            #download_video_segments(mpd_path, dest_video)
         if log_location == 'local':
             copy_init_file(path_video, dest_video)
             copy_init_file(path_audio, dest_video)
             copy_video_segments(path_video, dest_video)
             copy_audio_segments(path_audio, dest_video)
         prepare_video_init(dest_video)
-        prepare_audio_init(dest_video)
-        concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
-        concat_video_segments_final(dest_video, gif_path, final_path)
+        #prepare_audio_init(dest_video)
+        #concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
+        #concat_video_segments_final(dest_video, gif_path, final_path)
         if cleanup == "True":
             clean_folder(dest_video)
 
     if args.par_type == 'path':
         path_to_log=args.path_to_log
-        if not os.path.isabs(args.path_to_log):
-            path_to_log  = os.path.abspath(args.path_to_log)
+        path_to_log=check_abs_url(path_to_log)
         # code to add date into the folder structure
         dest_video=args.dest_video+"/"+date
-        if not os.path.isabs(args.dest_video):
-            dest_video = os.path.abspath(args.dest_video)
+        dest_video=check_abs_url(dest_video)
         path_video=args.path_video
-        if not os.path.isabs(args.path_video):
-            path_video = os.path.abspath(args.path_video)
+        path_video=check_abs_url(path_video)
         path_audio=args.path_audio
-        if not os.path.isabs(args.path_audio):
-            path_audio = os.path.abspath(args.path_audio)
+        path_audio=check_abs_url(path_audio)
         log_location=args.log_location
-        if not os.path.isabs(args.log_location):
-            log_location = os.path.abspath(args.log_location)
+        log_location=check_abs_url(log_location)
         gif_path=args.gif_path
-        if not os.path.isabs(args.gif_path):
-            gif_path = os.path.abspath(args.gif_path)
+        gif_path=check_abs_url(gif_path)
         # code to add date into the final folder structure
         final_path_list=args.final_path.split("/")
         final_path_list.insert(len(final_path_list)-1, date)
         final_path_list = [val+"/" for val in final_path_list]
         final_path="".join(final_path_list)
-        if not os.path.isabs(args.final_path):
-            final_path = os.path.abspath(args.final_path)
+        final_path=check_abs_url(final_path)
         read_replevels_log(path_to_log, args.rep_lvl_column, args.chunk_index_column, args.log_separator)
         read_stalls_log(path_to_log, args.stall_dur_column, args.chunk_index_column, args.log_separator)
         if args.log_location != 'local':
