@@ -156,7 +156,7 @@ def prepare_audio_init(path):
         suffix = "cat "
     for file in os.listdir(path):
         filename = os.fsdecode(file)
-        if str(filename).__contains__("segment_init") or (filename.__contains__("audio_dashinit")):
+        if str(filename).__contains__("segment_init"):
             init = filename
     for file in os.listdir(path):
         filename = os.fsdecode(file)
@@ -312,8 +312,13 @@ def concat_video_segments_final(path, path_to_gif, path_to_file):
     sorted_dict = helper_segment_list(path)
     x = helper_get_max_resolution_fps_duration(path, "merged")
     full_path = os.path.join(path, "segmentList.txt")
+    print("SORTED DICT:")
+    print(sorted_dict)
+    print("helper_get_max_resolution_fps_duration:")
+    print(x)
     for key in sorted_dict:
         if ((key + 1) in list_stall_values.keys()):
+            print ("PRIJE POZIVA ----  " + str (key) + str (float(x[7])))
             create_stalled_video(path, sorted_dict, key, path_to_gif, float(x[7]))
             continue
         seg_path = os.path.join(path, sorted_dict[key])
@@ -471,6 +476,7 @@ def parse_mpd_bytecode(mpd_url, destination):
                         mpd_url_final=mpd_url2+"/"+init_name
                         filepath = os.path.join(destination, init_name)
                         komanda = 'curl.exe ' + mpd_url_final + ' --output ' + filepath
+                        print(komanda)
                         os.system(komanda)
                         init_video=False
                     for representation in adapt_set.representations:
@@ -485,7 +491,7 @@ def parse_mpd_bytecode(mpd_url, destination):
                             segment_name=base_url.rsplit("/", 2)[2]
                             segment_name_final=segment_name.split(".mp4")[0] + "_segment" + str(key) + ".m4s"
                             #get media range of a specific segment
-                            range=representation.segment_lists[0].segment_urls[key-1].media_range
+                            range=representation.segment_lists[0].segment_urls[key-1].index_range
                             #create final path to save file locally
                             final_url=os.path.join(destination,segment_name_final)
                             komanda = 'curl.exe ' + mpd_url_final + ' -i -H ' + '"Range: bytes=' + range + '" ' + ' --output '  + final_url
@@ -497,9 +503,9 @@ def parse_mpd_bytecode(mpd_url, destination):
                         init_name=adapt_set.representations[0].base_urls[0].base_url_value
                         mpd_url2 = mpd_url.rsplit("/", 1)[0]
                         mpd_url_final=mpd_url2+"/"+init_name
-                        filepath = os.path.join(destination, init_name)
-                        komanda = 'curl.exe ' + mpd_url_final + ' --output ' + filepath
-                        #print(komanda)
+                        filepath = os.path.join(destination, "segment_init.mp4")
+                        range = adapt_set.representations[0].segment_lists[0].initializations[0].range
+                        komanda = 'curl.exe ' + mpd_url_final + ' -i -H ' + '"Range: bytes=' + range + '" ' + ' --output ' + filepath
                         os.system(komanda)
                         init_audio=False
                     #get base url for audio segments
@@ -594,11 +600,15 @@ if __name__ == '__main__':
         print (list_stall_values)
         if log_location != 'local':
             #parse_mpd(mpd_path)
-            #parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full_byte_range/bbb_enc_x264_dash.mpd", dest_video)
-            parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full_byte_range/dash_video_audio.mpd", dest_video)
+            parse_mpd("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd")
 
+
+            #parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full_byte_range/bbb_enc_x264_dash.mpd", dest_video)
+            parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full_byte_range/dash_video_audio.mpd", dest_video)
             #download_audio_segments(mpd_path, dest_video)
+            #download_audio_segments("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd", dest_video)
             #download_video_segments(mpd_path, dest_video)
+            #download_video_segments("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd", dest_video)
         if log_location == 'local':
             copy_init_file(path_video, dest_video)
             copy_init_file(path_audio, dest_video)
