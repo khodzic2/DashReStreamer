@@ -491,10 +491,10 @@ def parse_mpd_bytecode(mpd_url, destination):
                             segment_name=base_url.rsplit("/", 2)[2]
                             segment_name_final=segment_name.split(".mp4")[0] + "_segment" + str(key) + ".m4s"
                             #get media range of a specific segment
-                            range=representation.segment_lists[0].segment_urls[key-1].index_range
+                            range=representation.segment_lists[0].segment_urls[key-1].media_range
                             #create final path to save file locally
                             final_url=os.path.join(destination,segment_name_final)
-                            komanda = 'curl.exe ' + mpd_url_final + ' -i -H ' + '"Range: bytes=' + range + '" ' + ' --output '  + final_url
+                            komanda = 'curl.exe -v -X GET -H ' + '"Range: bytes=' + range + '" ' + mpd_url_final + ' >> ' + final_url
                             #print(komanda)
                             os.system(komanda)
                 # download audio init file once
@@ -505,7 +505,7 @@ def parse_mpd_bytecode(mpd_url, destination):
                         mpd_url_final=mpd_url2+"/"+init_name
                         filepath = os.path.join(destination, "segment_init.mp4")
                         range = adapt_set.representations[0].segment_lists[0].initializations[0].range
-                        komanda = 'curl.exe ' + mpd_url_final + ' -i -H ' + '"Range: bytes=' + range + '" ' + ' --output ' + filepath
+                        komanda = 'curl.exe -v -X GET -H ' + '"Range: bytes=' + range + '" ' + mpd_url_final + ' >> ' + filepath
                         os.system(komanda)
                         init_audio=False
                     #get base url for audio segments
@@ -517,7 +517,7 @@ def parse_mpd_bytecode(mpd_url, destination):
                     segment_name="segment_" + str(key) + ".m4s"
                     #get final url to save segment locally
                     final_url = os.path.join(destination, segment_name)
-                    komanda = 'curl.exe ' + mpd_url_final + ' -i -H ' + '"Range: bytes=' + range + '" ' + ' --output ' + final_url
+                    komanda = 'curl.exe -v -X GET -H ' + '"Range: bytes=' + range + '" ' + mpd_url_final + ' >> ' + final_url
                     #print(komanda)
                     os.system(komanda)
 
@@ -600,11 +600,11 @@ if __name__ == '__main__':
         print (list_stall_values)
         if log_location != 'local':
             #parse_mpd(mpd_path)
-            parse_mpd("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd")
+            #parse_mpd("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd")
 
 
-            #parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full_byte_range/bbb_enc_x264_dash.mpd", dest_video)
-            parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full_byte_range/dash_video_audio.mpd", dest_video)
+            parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full_byte_range/dash_video_audio.mpd", dest_video)
+            #parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full_byte_range/dash_video_audio.mpd", dest_video)
             #download_audio_segments(mpd_path, dest_video)
             #download_audio_segments("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd", dest_video)
             #download_video_segments(mpd_path, dest_video)
@@ -615,9 +615,9 @@ if __name__ == '__main__':
             copy_video_segments(path_video, dest_video)
             copy_audio_segments(path_audio, dest_video)
         prepare_video_init(dest_video)
-        #prepare_audio_init(dest_video)
-        #concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
-        #concat_video_segments_final(dest_video, gif_path, final_path)
+        prepare_audio_init(dest_video)
+        concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
+        concat_video_segments_final(dest_video, gif_path, final_path)
         if cleanup == "True":
             clean_folder(dest_video)
 
