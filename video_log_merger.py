@@ -451,7 +451,15 @@ def check_abs_url(url):
     if not os.path.isabs(url):
         url = os.path.abspath(url)
     return url
-
+def check_mpd_type (url):
+    mpd_test = MPEGDASHParser.parse(url)
+    try:
+        range = mpd_test.periods[0].adaptation_sets[0].representations[0].segment_lists[0].segment_urls[0].media_range
+        print(range)
+    except:
+        return "regular"
+    else:
+        return "byterange"
 def parse_mpd_bytecode(mpd_url, destination):
     # parses mpd from given url, and saves all audio and video media links into list_mpd_audio and list_mpd_video dictionaries
     # mpd_url = 'http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full/dash_video_audio.mpd'
@@ -562,6 +570,8 @@ if __name__ == '__main__':
 
     fill_resolution_dict()
 
+
+
     if args.par_type == 'config':
         config_obj = configparser.ConfigParser()
         config_path = args.config_path
@@ -599,16 +609,14 @@ if __name__ == '__main__':
         print (list_seg_rep_csv)
         print (list_stall_values)
         if log_location != 'local':
-            #parse_mpd(mpd_path)
-            #parse_mpd("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd")
-
-
-            parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full_byte_range/dash_video_audio.mpd", dest_video)
-            #parse_mpd_bytecode("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full_byte_range/dash_video_audio.mpd", dest_video)
-            #download_audio_segments(mpd_path, dest_video)
-            #download_audio_segments("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd", dest_video)
-            #download_video_segments(mpd_path, dest_video)
-            #download_video_segments("http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/2_sec/x264/sintel/DASH_Files/full/dash_video_audio.mpd", dest_video)
+            #check mpd type
+            type = check_mpd_type(mpd_path)
+            if (type=="regular"):
+                parse_mpd(mpd_path)
+                download_audio_segments(mpd_path, dest_video)
+                download_video_segments(mpd_path, dest_video)
+            if (type=="byterange"):
+                parse_mpd_bytecode(mpd_path, dest_video)
         if log_location == 'local':
             copy_init_file(path_video, dest_video)
             copy_init_file(path_audio, dest_video)
@@ -644,9 +652,14 @@ if __name__ == '__main__':
         read_replevels_log(path_to_log, args.rep_lvl_column, args.chunk_index_column, args.log_separator)
         read_stalls_log(path_to_log, args.stall_dur_column, args.chunk_index_column, args.log_separator)
         if args.log_location != 'local':
-            parse_mpd(log_location)
-            download_audio_segments(log_location, dest_video)
-            download_video_segments(log_location, dest_video)
+            #check mpd type
+            type = check_mpd_type(mpd_path)
+            if (type=="regular"):
+                parse_mpd(log_location)
+                download_audio_segments(log_location, dest_video)
+                download_video_segments(log_location, dest_video)
+            if (type=="byterange"):
+                parse_mpd_bytecode(mpd_path, dest_video)
         if args.log_location == 'local':
             copy_init_file(path_video, dest_video)
             copy_init_file(path_audio, dest_video)
