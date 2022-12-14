@@ -476,20 +476,21 @@ def check_mpd_type(url):
         return "byterange"
 
 
-def parse_mpd_bytecode(mpd_url, destination):
+def parse_mpd_bytecode(mpd_url, destination, metrics):
     # parses mpd from given url, and saves all audio and video media links into list_mpd_audio and list_mpd_video dictionaries
     # mpd_url = 'http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full/dash_video_audio.mpd'
-    print(mpd_url)
     mpd = MPEGDASHParser.parse(mpd_url)
-    print(mpd)
+    max_bandwidth = 0
     init_video = True
     init_audio = True
+    filenewpath = os.path.join(destination, "vmaf")
     if not os.path.exists(destination):
         os.makedirs(destination)
+    if not os.path.exists(filenewpath):
+        os.makedirs(filenewpath)
 
     # for every segment in log, map bandwidth with bandwidth from mpd and save server url of that segment to a file
     for key in list_seg_rep_csv:
-        print(key)
         for period in mpd.periods:
             for adapt_set in period.adaptation_sets:
                 # download video init file once
@@ -500,9 +501,17 @@ def parse_mpd_bytecode(mpd_url, destination):
                         mpd_url_final = mpd_url2 + "/" + init_name
                         filepath = os.path.join(destination, init_name)
                         komanda = 'curl.exe ' + mpd_url_final + ' --output ' + filepath
-                        print(komanda)
                         os.system(komanda)
                         init_video = False
+                        if metrics == "True":
+                            copyfile(filepath, os.path.join(filenewpath,init_name))
+                    if metrics=="True":
+                        for representation in adapt_set.representations:
+                            # find max bandwidth
+                            if representation.bandwidth>max_bandwidth:
+                                max_bandwidth=representation.bandwidth
+                                max_base_url=representation.base_urls[0].base_url_value
+                                max_ranges=representation.segment_lists[0]
                     for representation in adapt_set.representations:
                         # maps bandwidth from mpd with bandwidth from video log file
                         if (list_seg_rep_csv[key] >= representation.bandwidth / 1000 * 0.95 and list_seg_rep_csv[
@@ -520,8 +529,19 @@ def parse_mpd_bytecode(mpd_url, destination):
                             # create final path to save file locally
                             final_url = os.path.join(destination, segment_name_final)
                             komanda = 'curl.exe -v -X GET -H ' + '"Range: bytes=' + range + '" ' + mpd_url_final + ' >> ' + final_url
-                            # print(komanda)
+                            print("CURL OBICNA KOMANDA " + komanda)
                             os.system(komanda)
+                            if metrics=="True":
+                                mpd_url2 = mpd_url.rsplit("/", 1)[0]
+                                mpd_url_final = mpd_url2 + "/" + max_base_url
+                                segment_name = max_base_url.rsplit("/", 2)[2]
+                                segment_name_final = segment_name.split(".mp4")[0] + "_segment" + str(key) + ".m4s"
+                                max_final_url = os.path.join(filenewpath, segment_name_final)
+                                range = max_ranges.segment_urls[key - 1].media_range
+                                komanda = 'curl.exe -v -X GET -H ' + '"Range: bytes=' + range + '" ' + mpd_url_final + ' >> ' + max_final_url
+                                print( "CURL METRIC KOMANDA " + komanda)
+                                os.system(komanda)
+
                 # download audio init file once
                 if "audio" in adapt_set.representations[0].mime_type:
                     if (init_audio):
@@ -543,7 +563,6 @@ def parse_mpd_bytecode(mpd_url, destination):
                     # get final url to save segment locally
                     final_url = os.path.join(destination, segment_name)
                     komanda = 'curl.exe -v -X GET -H ' + '"Range: bytes=' + range + '" ' + mpd_url_final + ' >> ' + final_url
-                    # print(komanda)
                     os.system(komanda)
 
 def download_max_res_segments (mpd_url, dest):
@@ -642,6 +661,7 @@ def calculate_vmaf(paths):
                     # ffmpeg command to calculate all metrics with specific vmaf model and store them to xml log
 
                     komanda = "ffmpeg -i " + path_video_orig+ " -i " + path_video_ref +  ' -lavfi libvmaf=model_path="' + model_path + '":n_threads=4:psnr=1:ssim=1:ms_ssim=1:log_fmt=xml:log_path=' + log + ' -f null - '
+                    print("VMAF KOMANDA " + komanda)
                     os.system(komanda)
 
                     # parsing metric values from log and adding them to temp_list
@@ -835,9 +855,10 @@ if __name__ == '__main__':
                 download_video_segments(mpd_path, dest_video)
                 if calc_metrics == "True":
                     download_max_res_segments(mpd_path, dest_video)
-                    init_vmaf_segments(dest_video)
-            if type == "byterange":
-                parse_mpd_bytecode(mpd_path, dest_video)
+            if (type == "byterange"):
+                parse_mpd_bytecode(mpd_path, dest_video,calc_metrics)
+            if calc_metrics == "True":
+                init_vmaf_segments(dest_video)
         if log_location == 'local':
             copy_init_file(path_video, dest_video)
             copy_init_file(path_audio, dest_video)
@@ -846,7 +867,7 @@ if __name__ == '__main__':
         prepare_video_init(dest_video, calc_metrics)
         if calc_metrics == "True":
             scale_vmaf(dest_video)
-            calculate_vmaf(dest_video,"")
+            calculate_vmaf(dest_video)
         if merge_video == "True":
             prepare_audio_init(dest_video)
             concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
@@ -888,9 +909,11 @@ if __name__ == '__main__':
                 download_video_segments(log_location, dest_video)
                 if calc_metrics == "True":
                     download_max_res_segments(mpd_path, dest_video)
-                    init_vmaf_segments(dest_video)
             if (type == "byterange"):
-                parse_mpd_bytecode(mpd_path, dest_video)
+                parse_mpd_bytecode(mpd_path, dest_video,calc_metrics)
+            if calc_metrics == "True":
+                init_vmaf_segments(dest_video)
+
         if args.log_location == 'local':
             copy_init_file(path_video, dest_video)
             copy_init_file(path_audio, dest_video)
@@ -899,7 +922,7 @@ if __name__ == '__main__':
         prepare_video_init(dest_video, calc_metrics)
         if calc_metrics == "True":
             scale_vmaf(dest_video)
-            calculate_vmaf(dest_video, "")
+            calculate_vmaf(dest_video)
         if merge_video == "True":
             prepare_audio_init(dest_video)
             concat_audio_video_ffmpeg(dest_video, args.auto_scale, args.scale_resolution)
