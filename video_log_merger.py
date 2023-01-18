@@ -24,6 +24,8 @@ from mpegdash.parser import MPEGDASHParser
 import configparser
 import platform
 from datetime import datetime
+from datetime import timedelta
+
 
 vmaf_list = []
 vmaf_list1 = []
@@ -32,17 +34,24 @@ vmaf_list3 = []
 
 list_rep_mpd = []
 list_seg_rep_csv = dict()
+list_seg_res_csv=set()
+youtube_segments_dict=dict()
 list_inter_names = dict()
 list_stall_values = dict()
 list_mpd_audio = dict()
 list_mpd_video = dict()
 list_resolutions = dict()
+youtube_videos=list()
 
 # get the current date
 date = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
 
 #variable to store movie name
 movie_name=""
+#variable to store youtube movie name
+yt_movie_title=""
+#variable to store chunk duration, default is 4
+chunk_duration= 4
 
 
 def fill_resolution_dict():
@@ -52,9 +61,9 @@ def fill_resolution_dict():
     list_resolutions["2160p"] = [3840, 2160]
 
 
-def read_replevels_log(path, bitrate_column_name, index_column_name, delimiter):
-    # read log and save bitrates and indexes
-
+def read_replevels_log(path, bitrate_column_name, index_column_name, height_column_name, delimiter, chunk_duration_col):
+    # read log and save bitrates and indexes, and chunk duration
+    global chunk_duration
     if delimiter == 'tab':
         df = pd.read_csv(path, sep='\t')
     elif delimiter == 'csv':
@@ -64,7 +73,9 @@ def read_replevels_log(path, bitrate_column_name, index_column_name, delimiter):
     for index, row in df.iterrows():
         # maps index to bitrate
         list_seg_rep_csv[row[index_column_name]] = row[bitrate_column_name]
-
+        list_seg_res_csv.add(row[height_column_name])
+        youtube_segments_dict[row[index_column_name]] = row[height_column_name]
+        chunk_duration=round(int(row[chunk_duration_col])/1000)
 
 def read_stalls_log(path, stall_column_name, index_column_name, delimiter):
     # read log and save stalls and indexes
@@ -110,6 +121,25 @@ def copy_video_segments(path, destination):
                         new_destination = os.path.join(destination, filename)
                         copyfile(path_to_file, new_destination)
 
+def copy_youtube_segments(path, destination):
+    # copy youtube segments from given path to destination path
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    for key in youtube_segments_dict:
+        height = youtube_segments_dict.get(key)
+        for file in os.listdir(path):
+            filename = os.fsdecode(file)
+            string_height= re.search(r'[^\d]*(\d+)',  filename).group(1)
+            if filename.endswith(".mp4"):
+                continue
+            string_segment = re.search(r'(?:\d+)(?!.*\d)', filename)
+            string_segment=string_segment.group(0)
+            if (int(string_height)==height) and (int(string_segment)+1==key):
+                path_to_file = os.path.join(path, filename)
+                new_destination = os.path.join(destination, filename)
+                copyfile(path_to_file, new_destination)
 
 def copy_audio_segments(path, destination):
     # copies audio log segments from source to destination
@@ -217,26 +247,47 @@ def concat_audio_video_ffmpeg(path, auto_scale, resolution):
                         os.system(komanda4)
 
 
-def helper_get_max_resolution_fps_duration(path, prefix):
+def helper_get_max_resolution_fps_duration(path, prefix, suffix=""):
     # function to get resolution, fps and duration of a highest resolution segment using ffprobe
-    suffix = ""
+    if suffix=='.mkv':
+        checkyoutube = True
     if prefix == "inited":
         suffix = ".mp4"
     if prefix == "merged":
         suffix = ".mkv"
-    if prefix == "inited_max":
+    if prefix == "inited_max" and not checkyoutube:
         suffix = ".mp4"
 
     list_inter_names2 = dict()
     for file in os.listdir(path):
+        #if file=="youtube":
+            #checkyoutube=True
+            #continue
         filename = os.fsdecode(file)
+        print("FILENAME")
+        print(filename)
+        print(prefix)
+        print(suffix)
         if str(filename).endswith(suffix) and str(filename).startswith(prefix):
             segment = re.search("(\d+)(?!.*\d)", filename.split(suffix)[0]).group(1)  # .removesuffix(suffix)).group(1)
+            print("SEGMENT")
+            print(segment)
+            print(int(segment))
             list_inter_names2[int(segment)] = str(filename)
+
+    print(list_inter_names2)
     sorted_dict = dict(sorted(list_inter_names2.items()))
-    segment = (
-        sorted_dict[
-            list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
+    print("SORTED_DICT")
+    print(sorted_dict)
+    print("list_seg_rep_csv")
+    print(list_seg_rep_csv)
+    if checkyoutube:
+        segment = (sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]-1])
+    else:
+        segment = (sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
+    print("MAXSEGMENT")
+    print(segment)
+
 
     komanda = "ffmpeg -i " + os.path.join(path, segment) + " -codec copy " + os.path.join(path, segment.split(".mkv")[
         0] + ".mp4")  # .removesuffix(".mkv")
@@ -253,6 +304,100 @@ def helper_get_max_resolution_fps_duration(path, prefix):
     # result = result.split("/1")[0]
     return helper_format_result_string(result)
 
+def get_youtube_title(url):
+    # gets youtube movie title and store it to variable
+    global yt_movie_title
+    result = subprocess.run(['youtube-dl', '-e',  url
+                         ],
+                        stdout=subprocess.PIPE).stdout.decode('utf-8')
+    yt_movie_title=result.replace(" ", "")
+    print("MOVIE TITLE " + yt_movie_title)
+
+def download_youtube_movies(path, url):
+    #downloads all available resolutions (if not available, then next lower) of a youtube videos to a specified folder
+    paths = os.path.join(path, "youtube")
+    if not os.path.exists(paths):
+        os.makedirs(paths)
+    for height in list_seg_res_csv:
+        subrl="bestvideo[height<="+str(height) + "]+bestaudio/best[height<=" + str(height) +"]"
+        name=yt_movie_title+str(height)
+        name=name.replace("\n", "")
+        print(subrl + "  " + name)
+        youtube_path=os.path.join(paths,name)
+        try:
+            result = subprocess.run(['youtube-dl', '-f', subrl, '-R', '2', url,'-o', youtube_path
+                                 ],
+                                stdout=subprocess.PIPE).stdout.decode('utf-8')
+        except:
+            print(height + " not found!")
+            pass
+    for file in os.listdir(paths):
+        filename = os.fsdecode(file)
+        youtube_videos.append(filename)
+    print(youtube_videos)
+       # komanda = youtube-dl -f "bestvideo[height=720]+bestaudio/best[height=720]" --keep-fragments https://www.youtube.com/watch?v=2lAe1cqCOXo"
+
+def download_maxres_youtube_movie(path, url):
+    #downloads best available resolutions of a youtube video from a given url to a specified folder
+    paths = os.path.join(path, "vmaf")
+    if not os.path.exists(paths):
+        os.makedirs(paths)
+    name="bestres"+yt_movie_title
+    name=name.replace("\n", "")
+    youtube_path=os.path.join(paths,name)
+    try:
+        result = subprocess.run(['youtube-dl', url,'-o', youtube_path
+                                 ],
+                                stdout=subprocess.PIPE).stdout.decode('utf-8')
+    except:
+        print(" not found!")
+        pass
+
+def youtube_split (path,segment_duration):
+    #split every video in given path to a segments of a given duration
+    print(youtube_videos)
+    youtube_path=os.path.join(path,"youtube")
+    timestamp=str(timedelta(seconds=segment_duration))
+    for youtube_title in youtube_videos:
+        title_path = os.path.join(youtube_path, youtube_title)
+        print(youtube_title + " " + timestamp + " " + title_path)
+        if (youtube_title.endswith("mp4")):
+            newname="merged"+youtube_title.removesuffix('.mp4')+'segment%03d.mkv'
+        else:
+            newname = "merged"+youtube_title.removesuffix('.mkv') + 'segment%03d.mkv'
+        print(newname)
+        newpath=os.path.join(youtube_path,newname)
+        try:
+            result = subprocess.run(['ffmpeg', '-i', title_path, '-c', 'copy', '-map', '0', '-segment_time', timestamp, '-f', 'segment', '-reset_timestamps', '1' , newpath
+                                 ],
+                                stdout=subprocess.PIPE).stdout.decode('utf-8')
+        except:
+            print("ERROR happened")
+            pass
+
+def youtube_vmaf_split (path,segment_duration):
+    #split bestres video in given path to a segments of a given duration required for vmaf calculation
+    youtube_path=os.path.join(path,"vmaf")
+    if not os.path.exists(youtube_path):
+        os.makedirs(youtube_path)
+    timestamp=str(timedelta(seconds=segment_duration))
+    for file in os.listdir(youtube_path):
+        filename = os.fsdecode(file)
+        if filename.startswith("bestres"):
+            title_path = os.path.join(youtube_path,filename)
+            if (filename.endswith("mp4")):
+                newname="inited_max"+filename.removesuffix('.mp4')+'segment%03d.mkv'
+            else:
+                newname = "inited_max"+filename.removesuffix('.mkv') + 'segment%03d.mkv'
+            newpath=os.path.join(youtube_path,newname)
+            try:
+                result = subprocess.run(['ffmpeg', '-i', title_path, '-c', 'copy', '-map', '0', '-segment_time', timestamp, '-f', 'segment', '-reset_timestamps', '1' , newpath
+                                 ],
+                                stdout=subprocess.PIPE).stdout.decode('utf-8')
+            except:
+                print("ERROR happened")
+                pass
+            break
 
 def helper_format_result_string(result):
     # formats output from ffprobe command
@@ -283,6 +428,8 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration):
     jpg_path = os.path.join(path, newname)
     file_path = os.path.join(path, sorted_dict[key])
     komanda = 'ffmpeg -sseof -3 -i ' + file_path + ' -update 1 -q:v 1 ' + jpg_path
+    print("JPG komanda")
+    print(komanda)
     os.system(komanda)
     path_mp4 = os.path.join(path, sorted_dict[key])
     result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
@@ -330,6 +477,45 @@ def concat_video_segments_final(path, path_to_gif, path_to_file):
             create_stalled_video(path, sorted_dict, key, path_to_gif, float(x[7]))
             continue
         seg_path = os.path.join(path, sorted_dict[key])
+        komanda = 'echo file ' + "'" + seg_path + "'" + ' >> ' + full_path
+        os.system(komanda)
+    if not os.path.exists(path_to_file):
+        os.makedirs(path_to_file)
+    final_path = os.path.join(path_to_file, path_to_log.split(".")[-2].split(os.sep)[-1] + "_" + "video.mkv")
+    komanda = "ffmpeg -f concat -safe 0 -i " + full_path + " -c copy " + final_path
+    os.system(komanda)
+
+def concat_video_segments_final_youtube(path, path_to_gif, path_to_file, segment_duration):
+    # create stalls and merge final video
+    sorted_dict = helper_segment_list(path)
+    print("SORTED_DICT ")
+    print(sorted_dict)
+    #x = helper_get_max_resolution_fps_duration(path, "merged")
+    print("LIST_SEG")
+    print(list_seg_rep_csv)
+    ##NEMA exceptiona, ali nešto ne spaja OK, provjeriti je li problem sa pomjerenim indeksima kod youtube 00 umjesto 1 ili je nešto drugo sa stallovima i spajanjem,
+    #djeluje da spajanje bez stalla radi, ali trebalo bi još provjeriti
+
+    ##Izgleda da ovdje ne radi ffprobe sa duration koji se šalje u create_stalled_video,
+    #za youtube se segment_duration svakako šalje u configu pa se ovdje može dodati provjera ili napraviti različite funkcije za youtube i bez
+    full_path = os.path.join(path, "segmentList.txt")
+    print("LISTSLATTVALUES")
+    print(list_stall_values)
+    print("SORTED_DICT")
+    print(sorted_dict)
+    sorted_dict2=dict()
+    for key in sorted_dict:
+        sorted_dict2[key+1]=sorted_dict[key]
+    print("SORTEDDICT2")
+    print(sorted_dict2)
+    for key in sorted_dict2:
+        if ((key + 1) in list_stall_values.keys()):
+            #create_stalled_video(path, sorted_dict, key, path_to_gif, float(x[7]))
+            create_stalled_video(path, sorted_dict2, key, path_to_gif, segment_duration)
+            print("create_stalled_video")
+            print(key)
+            continue
+        seg_path = os.path.join(path, sorted_dict2[key])
         komanda = 'echo file ' + "'" + seg_path + "'" + ' >> ' + full_path
         os.system(komanda)
     if not os.path.exists(path_to_file):
@@ -466,8 +652,10 @@ def check_abs_url(url):
 
 
 def check_mpd_type(url):
-    mpd_test = MPEGDASHParser.parse(url)
+    if 'youtube' in url:
+        return "youtube"
     try:
+        mpd_test = MPEGDASHParser.parse(url)
         range = mpd_test.periods[0].adaptation_sets[0].representations[0].segment_lists[0].segment_urls[0].media_range
         print(range)
     except:
@@ -621,13 +809,16 @@ def init_vmaf_segments (paths):
             komanda = suffix + path_init + " " + path_file + " > " + path_final
             os.system(komanda)
 
-def scale_vmaf(paths):
+def scale_vmaf(paths,youtube_check=False):
     path=os.path.join(paths,"vmaf")
     #find maximum resolution segment and save that resolution to a variable
-    x = helper_get_max_resolution_fps_duration(path, "inited_max")
+    if youtube_check:
+        x = helper_get_max_resolution_fps_duration(path, "inited_max",".mkv")
+    else:
+        x = helper_get_max_resolution_fps_duration(path, "inited_max")
     for file2 in os.listdir(path):
         filename2 = os.fsdecode(file2)
-        if str(filename2).startswith("inited") and not(str(filename2).startswith("inited_max")):
+        if (str(filename2).startswith("inited") or str(filename2).startswith("merged")) and not(str(filename2).startswith("inited_max")):
             video = str(filename2)
             path_i_video = os.path.join(path, video)
             path_final = os.path.join(path, "scaled" + video)
@@ -635,7 +826,9 @@ def scale_vmaf(paths):
             komanda4 = 'ffmpeg -i ' + path_i_video + ' -vf scale=' + str(x[1]) + ':' + str(x[3]) + " " + path_final
             os.system(komanda4)
 
-def calculate_vmaf(paths):
+
+
+def calculate_vmaf(paths, checkYoutube=False):
     #movie name is parsed from mpd
     mv=movie_name.replace(" ", "")
     #temporary list to save every result row
@@ -644,18 +837,26 @@ def calculate_vmaf(paths):
     model_path='resources/vmaf_v0.6.1.json'
     model_path4k='resources/vmaf_4k_v0.6.1.json'
     path=os.path.join(paths,"vmaf")
+    ##change hardcoded .mp4 to suffix variable 16.01.2023
+    suffix=""
+    if checkYoutube:
+        suffix = '.mkv'
+    else:
+        suffix = '.mp4'
+    print("SUFFIX VMAF")
+    print(suffix)
     for file in os.listdir(path):
         filename = os.fsdecode(file)
         if str(filename).startswith("scaled"):
-            segment = re.search("(\d+)(?!.*\d)", filename.split(".mp4")[0]).group(1)
+            segment = re.search("(\d+)(?!.*\d)", filename.split(suffix)[0]).group(1)
             video1=str(filename)
             for file2 in os.listdir(path):
                 filename2 = os.fsdecode(file2)
-                if str(filename2).endswith("segment" + segment + ".mp4") and str(filename2).startswith("inited_max"):
+                if str(filename2).endswith("segment" + segment + suffix) and str(filename2).startswith("inited_max"):
                     video2 = str(filename2)
                     path_video_orig = os.path.join(path, video1)
                     path_video_ref = os.path.join(path, video2)
-                    log= video1.split(".mp4")[0]+'.xml'
+                    log= video1.split(suffix)[0]+'.xml'
                     #to avoid vmaf modelpath bug in windows ...
                     os.chdir(os.path.dirname(os.path.realpath(__file__)))
                     # ffmpeg command to calculate all metrics with specific vmaf model and store them to xml log
@@ -673,9 +874,15 @@ def calculate_vmaf(paths):
                         temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'psnr']).iterrows():
                         temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'psnr_y']).iterrows():
+                        temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'ssim']).iterrows():
                         temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'float_ssim']).iterrows():
+                        temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'ms_ssim']).iterrows():
+                        temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'float_ms_ssim']).iterrows():
                         temp_list.append(row['mean'])
                     #adding all metrics for 1 segment to vmaf_list which will be stored to a final csv
                     vmaf_list.append(temp_list.copy())
@@ -694,9 +901,15 @@ def calculate_vmaf(paths):
                         temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'psnr']).iterrows():
                         temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'psnr_y']).iterrows():
+                        temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'ssim']).iterrows():
                         temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'float_ssim']).iterrows():
+                        temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'ms_ssim']).iterrows():
+                        temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'float_ms_ssim']).iterrows():
                         temp_list.append(row['mean'])
                     vmaf_list1.append(temp_list.copy())
                     temp_list.clear()
@@ -714,9 +927,15 @@ def calculate_vmaf(paths):
                         temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'psnr']).iterrows():
                         temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'psnr_y']).iterrows():
+                        temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'ssim']).iterrows():
                         temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'float_ssim']).iterrows():
+                        temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'ms_ssim']).iterrows():
+                        temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'float_ms_ssim']).iterrows():
                         temp_list.append(row['mean'])
                     vmaf_list2.append(temp_list.copy())
                     temp_list.clear()
@@ -734,14 +953,25 @@ def calculate_vmaf(paths):
                         temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'psnr']).iterrows():
                         temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'psnr_y']).iterrows():
+                        temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'ssim']).iterrows():
                         temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'float_ssim']).iterrows():
+                        temp_list.append(row['mean'])
                     for index, row in (df.loc[df['name'] == 'ms_ssim']).iterrows():
+                        temp_list.append(row['mean'])
+                    for index, row in (df.loc[df['name'] == 'float_ms_ssim']).iterrows():
                         temp_list.append(row['mean'])
                     vmaf_list3.append(temp_list.copy())
                     temp_list.clear()
                     if os.path.isfile(log):
                         os.remove(log)
+    print("VMAF_LISTS")
+    print(vmaf_list)
+    print(vmaf_list1)
+    print(vmaf_list2)
+    print(vmaf_list3)
     #creating dataframes for every model to store them to csv
     final_dataframe = pd.DataFrame(vmaf_list, columns=['Segment', 'Model','VMAF', 'PSNR','SSIM', 'MS_SSIM'])
     final_dataframe1 = pd.DataFrame(vmaf_list1, columns=['Segment', 'Model','VMAF', 'PSNR','SSIM', 'MS_SSIM'])
@@ -775,6 +1005,10 @@ if __name__ == '__main__':
                         help='Column name where chunk index is stored')
     parser.add_argument('--stall_dur_col', dest='stall_dur_column', type=str, default="Stall_Dur",
                         help='Column name where stall duration is stored')
+    parser.add_argument('--chunk_dur_col', dest='chunk_duration_column', type=str, default="ChunkDur",
+                        help='Column name where chunk duration in miliseconds is stored')
+    parser.add_argument('--height_col', dest='height_column', type=str, default="Height",
+                        help='Column name where segment height is stored')
     parser.add_argument('--log_separator', dest='log_separator', type=str, default="csv",
                         help='Separator tyle, tab or csv')
     parser.add_argument('--path_audio', dest='path_audio', type=str, default="",
@@ -805,11 +1039,8 @@ if __name__ == '__main__':
                         help='If True VMAF, PSNR, SSIM and SSIM are calculated')
     parser.add_argument("--merge_video", dest='merge_video', type=str, default="True",
                         help='If True final video is merged')
-
     args = parser.parse_args()
-
     fill_resolution_dict()
-
     if args.par_type == 'config':
         config_obj = configparser.ConfigParser()
         config_path = args.config_path
@@ -821,6 +1052,8 @@ if __name__ == '__main__':
         rep_lvl_column = param["rep_lvl_col"]
         chunk_index_column = param["seg_index_col"]
         stall_dur_column = param["stall_dur_col"]
+        chunk_duration_column=param["chunk_dur_col"]
+        height_column = param["height_col"]
         log_separator = param["log_separator"]
         path_audio = param["path_audio"]
         path_audio = check_abs_url(path_audio)
@@ -844,38 +1077,9 @@ if __name__ == '__main__':
         scale_resolution = param["scale_resolution"]
         calc_metrics = param["calculate_metrics"]
         merge_video = param["merge_video"]
-        read_replevels_log(path_to_log, rep_lvl_column, chunk_index_column, log_separator)
+        read_replevels_log(path_to_log, rep_lvl_column, chunk_index_column, height_column, log_separator, chunk_duration_column)
         read_stalls_log(path_to_log, stall_dur_column, chunk_index_column, log_separator)
-        if log_location != 'local':
-            # check mpd type
-            type = check_mpd_type(mpd_path)
-            if type == "regular":
-                parse_mpd(mpd_path)
-                download_audio_segments(mpd_path, dest_video)
-                download_video_segments(mpd_path, dest_video)
-                if calc_metrics == "True":
-                    download_max_res_segments(mpd_path, dest_video)
-            if (type == "byterange"):
-                parse_mpd_bytecode(mpd_path, dest_video,calc_metrics)
-            if calc_metrics == "True":
-                init_vmaf_segments(dest_video)
-        if log_location == 'local':
-            copy_init_file(path_video, dest_video)
-            copy_init_file(path_audio, dest_video)
-            copy_video_segments(path_video, dest_video)
-            copy_audio_segments(path_audio, dest_video)
-        prepare_video_init(dest_video, calc_metrics)
-        if calc_metrics == "True":
-            scale_vmaf(dest_video)
-            calculate_vmaf(dest_video)
-        if merge_video == "True":
-            prepare_audio_init(dest_video)
-            concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
-            concat_video_segments_final(dest_video, gif_path, final_path)
-        if cleanup == "True":
-            clean_folder(dest_video)
-
-    if args.par_type == 'path':
+    elif args.par_type == 'path':
         path_to_log = args.path_to_log
         path_to_log = check_abs_url(path_to_log)
         # code to add date into the folder structure
@@ -898,22 +1102,70 @@ if __name__ == '__main__':
         calc_metrics = args.calculate_metrics
         merge_video = args.merge_video
         mpd_path = args.mpd_path
-        read_replevels_log(path_to_log, args.rep_lvl_column, args.chunk_index_column, args.log_separator)
+        read_replevels_log(path_to_log, args.rep_lvl_column, args.chunk_index_column, args.height_column,args.log_separator, args.chunk_duration_column)
         read_stalls_log(path_to_log, args.stall_dur_column, args.chunk_index_column, args.log_separator)
+        cleanup=args.cleanup
+    if log_location != 'local':
+        # check mpd type
+        type = check_mpd_type(mpd_path)
+        if type == "youtube":
+            get_youtube_title(mpd_path)
+            download_youtube_movies(dest_video,mpd_path)
+            youtube_split(dest_video,chunk_duration)
+        elif type == "regular":
+            parse_mpd(mpd_path)
+            download_audio_segments(mpd_path, dest_video)
+            download_video_segments(mpd_path, dest_video)
+            if calc_metrics == "True":
+                download_max_res_segments(mpd_path, dest_video)
+        elif type == "byterange":
+            parse_mpd_bytecode(mpd_path, dest_video,calc_metrics)
+        if calc_metrics == "True" and type!="youtube":
+            init_vmaf_segments(dest_video)
+    if log_location == 'local':
+        copy_init_file(path_video, dest_video)
+        copy_init_file(path_audio, dest_video)
+        copy_video_segments(path_video, dest_video)
+        copy_audio_segments(path_audio, dest_video)
+    prepare_video_init(dest_video, calc_metrics)
+    if calc_metrics == "True":
+        if type=="youtube":
+            copy_youtube_segments(os.path.join(dest_video,"youtube"),os.path.join(dest_video,"vmaf"))
+            download_maxres_youtube_movie(dest_video,mpd_path)
+            youtube_vmaf_split(dest_video,chunk_duration)
+            scale_vmaf(dest_video,True)
+            calculate_vmaf(dest_video,True)
+        else:
+            scale_vmaf(dest_video)
+            calculate_vmaf(dest_video)
+    if merge_video == "True":
+        if type=="youtube":
+            copy_youtube_segments(os.path.join(dest_video,"youtube"),dest_video)
+            concat_video_segments_final_youtube(dest_video, gif_path, final_path, chunk_duration)
+        else:
+            prepare_audio_init(dest_video)
+            concat_audio_video_ffmpeg(dest_video, auto_scale, scale_resolution)
+            concat_video_segments_final(dest_video, gif_path, final_path)
+    if cleanup == "True":
+        clean_folder(dest_video)
+"""
         if args.log_location != 'local':
             # check mpd type
             type = check_mpd_type(mpd_path)
-            if (type == "regular"):
+            if type == "youtube":
+                get_youtube_title(mpd_path)
+                download_youtube_movies(dest_video, mpd_path)
+                youtube_split(dest_video, 4)
+            elif (type == "regular"):
                 parse_mpd(log_location)
                 download_audio_segments(log_location, dest_video)
                 download_video_segments(log_location, dest_video)
                 if calc_metrics == "True":
                     download_max_res_segments(mpd_path, dest_video)
-            if (type == "byterange"):
+            elif (type == "byterange"):
                 parse_mpd_bytecode(mpd_path, dest_video,calc_metrics)
-            if calc_metrics == "True":
+            if calc_metrics == "True" and type != "youtube":
                 init_vmaf_segments(dest_video)
-
         if args.log_location == 'local':
             copy_init_file(path_video, dest_video)
             copy_init_file(path_audio, dest_video)
@@ -921,11 +1173,24 @@ if __name__ == '__main__':
             copy_audio_segments(path_audio, dest_video)
         prepare_video_init(dest_video, calc_metrics)
         if calc_metrics == "True":
-            scale_vmaf(dest_video)
-            calculate_vmaf(dest_video)
+            if type=="youtube":
+                copy_youtube_segments(os.path.join(dest_video,"youtube"),os.path.join(dest_video,"vmaf"))
+                download_maxres_youtube_movie(dest_video,mpd_path)
+                youtube_vmaf_split(dest_video,4)
+                scale_vmaf(dest_video,True)
+                calculate_vmaf(dest_video,True)
+            else:
+                scale_vmaf(dest_video)
+                calculate_vmaf(dest_video)
         if merge_video == "True":
-            prepare_audio_init(dest_video)
-            concat_audio_video_ffmpeg(dest_video, args.auto_scale, args.scale_resolution)
-            concat_video_segments_final(dest_video, gif_path, final_path)
+            if merge_video == "True":
+                if type == "youtube":
+                    copy_youtube_segments(os.path.join(dest_video, "youtube"), dest_video)
+                    concat_video_segments_final_youtube(dest_video, gif_path, final_path, 4)
+            else:
+                prepare_audio_init(dest_video)
+                concat_audio_video_ffmpeg(dest_video, args.auto_scale, args.scale_resolution)
+                concat_video_segments_final(dest_video, gif_path, final_path)
         if args.cleanup == "True":
             clean_folder(dest_video)
+"""
