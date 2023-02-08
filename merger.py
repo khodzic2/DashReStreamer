@@ -137,7 +137,6 @@ def parse_mpd_bytecode(mpd_url, destination, metrics,list_seg_rep_csv):
 
 def read_replevels_log(path, bitrate_column_name, index_column_name, height_column_name, delimiter, chunk_duration_col, list_seg_rep_csv, list_seg_res_csv, youtube_segments_dict):
     # read log and save bitrates and indexes, and chunk duration
-    global chunk_duration
     if delimiter == 'tab':
         df = pd.read_csv(path, sep='\t')
     elif delimiter == 'csv':
@@ -151,6 +150,7 @@ def read_replevels_log(path, bitrate_column_name, index_column_name, height_colu
         list_seg_res_csv.add(row[height_column_name])
         youtube_segments_dict[row[index_column_name]] = row[height_column_name]
         chunk_duration=round(int(row[chunk_duration_col])/1000)
+    return chunk_duration
 
 def check_mpd_type(url):
 #check if url is youtube link, regular or byterange mpd file
