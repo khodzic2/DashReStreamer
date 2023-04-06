@@ -85,7 +85,7 @@ if __name__ == '__main__':
                         help='If True all files except final video in dest_video deleted')
     parser.add_argument("--scale_resolution", dest='scale_resolution', type=str,
                         help='720p, 1080p, 1440p or 2160p, auto_scale should be set to 2')
-    parser.add_argument("--calculate_metrics", dest='calc_metrics', type=str, default="True",
+    parser.add_argument("--calculate_metrics", dest='calculate_metrics', type=str, default="True",
                         help='If True VMAF, PSNR, SSIM and SSIM are calculated')
     parser.add_argument("--merge_video", dest='merge_video', type=str, default="True",
                         help='If True final video is merged')

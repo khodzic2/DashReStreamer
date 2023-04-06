@@ -16,6 +16,7 @@ def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='res
     mv=movie_name.replace(" ", "")
     #temporary list to save every result row
     temp_list=[]
+    lista=[]
 
     path=os.path.join(paths,"vmaf")
     ##change hardcoded .mp4 to suffix variable
@@ -150,27 +151,37 @@ def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='res
                         os.remove(log)
 
     #creating dataframes for every model to store them to csv
-    final_dataframe = pd.DataFrame(vmaf_list, columns=['Segment', 'Model','VMAF', 'PSNR','SSIM', 'MS_SSIM'])
-    final_dataframe1 = pd.DataFrame(vmaf_list1, columns=['Segment', 'Model','VMAF', 'PSNR','SSIM', 'MS_SSIM'])
-    final_dataframe2 = pd.DataFrame(vmaf_list2, columns=['Segment', 'Model','VMAF', 'PSNR','SSIM', 'MS_SSIM'])
-    final_dataframe3 = pd.DataFrame(vmaf_list3, columns=['Segment', 'Model','VMAF', 'PSNR','SSIM', 'MS_SSIM'])
+    final_dataframe = pd.DataFrame(vmaf_list, columns=['Segment', 'Model_VMAF_norm','VMAF_norm', 'PSNR','SSIM', 'MS_SSIM'])
+    final_dataframe1 = pd.DataFrame(vmaf_list1, columns=['Segment', 'Model_VMAF_4K','VMAF_4K', 'PSNR','SSIM', 'MS_SSIM'])
+    final_dataframe2 = pd.DataFrame(vmaf_list2, columns=['Segment', 'Model_VMAF_phone_4k','VMAF_phone_4k', 'PSNR','SSIM', 'MS_SSIM'])
+    final_dataframe3 = pd.DataFrame(vmaf_list3, columns=['Segment', 'Model_VMAF_phone','VMAF_phone', 'PSNR','SSIM', 'MS_SSIM'])
+    #for concated csv
+    lista.append(final_dataframe,final_dataframe1,final_dataframe2,final_dataframe3)
 
     #saving 4 different csv files for 4 different vmaf models
-    final_log_name= mv + "_vmaf_v0.6.1_" +  date +'.csv'
+    final_log_name= mv + "_normal_model_" +  date +'.csv'
     metric_path=os.path.join(path,final_log_name)
     final_dataframe.to_csv(metric_path)
 
-    final_log_name = mv + "_4k_vmaf_v0.6.1_" + date + '.csv'
+    final_log_name = mv + "_4k_model_" + date + '.csv'
     metric_path = os.path.join(path, final_log_name)
     final_dataframe1.to_csv(metric_path)
 
-    final_log_name = mv + "_4k_vmaf_v0.6.1_phone_" + date + '.csv'
+    final_log_name = mv + "_4k_phone_model_" + date + '.csv'
     metric_path = os.path.join(path, final_log_name)
     final_dataframe2.to_csv(metric_path)
 
-    final_log_name = mv + "_vmaf_v0.6.1_phone_" + date + '.csv'
+    final_log_name = mv + "_normal_phone_model" + date + '.csv'
     metric_path = os.path.join(path, final_log_name)
     final_dataframe3.to_csv(metric_path)
+
+    #this is part where final concated csv file is created and saved
+    merged_dataframe= pd.concat(lista, axis=1, ignore_index=False)
+    merged_dataframe = merged_dataframe.loc[:,~merged_dataframe.columns.duplicated()].copy()
+
+    final_log_name = mv + "merged_metrics_final" + date + '.csv'
+    metric_path = os.path.join(path, final_log_name)
+    merged_dataframe.to_csv(metric_path)
 
 
 def scale_vmaf(paths,list_seg_rep_csv,youtube_check=False):

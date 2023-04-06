@@ -9,7 +9,7 @@ import platform
 from mpegdash.parser import MPEGDASHParser
 import subprocess
 
-def parse_mpd(mpd_url,list_mpd_video, list_mpd_audio, movie_name):
+def parse_mpd(mpd_url,list_mpd_video, list_mpd_audio):
     # parses mpd from given url, and saves all audio and video media links into list_mpd_audio and list_mpd_video dictionaries
     # mpd_url = 'http://cs1dev.ucc.ie/misl/4K_non_copyright_dataset/4_sec/x264/bbb/DASH_Files/full/dash_video_audio.mpd'
 

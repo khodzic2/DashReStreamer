@@ -15,6 +15,7 @@ def fill_resolution_dict():
 
 def helper_get_max_resolution_fps_duration(path, prefix, list_seg_rep_csv , suffix=""):
     # function to get resolution, fps and duration of a highest resolution segment using ffprobe
+    checkyoutube = False
     if suffix=='.mkv':
         checkyoutube = True
     if prefix == "inited":
