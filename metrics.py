@@ -156,7 +156,11 @@ def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='res
     final_dataframe2 = pd.DataFrame(vmaf_list2, columns=['Segment', 'Model_VMAF_phone_4k','VMAF_phone_4k', 'PSNR','SSIM', 'MS_SSIM'])
     final_dataframe3 = pd.DataFrame(vmaf_list3, columns=['Segment', 'Model_VMAF_phone','VMAF_phone', 'PSNR','SSIM', 'MS_SSIM'])
     #for concated csv
-    lista.append(final_dataframe,final_dataframe1,final_dataframe2,final_dataframe3)
+    lista.append(final_dataframe)
+    lista.append(final_dataframe1)
+    lista.append(final_dataframe2)
+    lista.append(final_dataframe3)
+
 
     #saving 4 different csv files for 4 different vmaf models
     final_log_name= mv + "_normal_model_" +  date +'.csv'
