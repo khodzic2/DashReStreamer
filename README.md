@@ -99,8 +99,8 @@ This is example of how to run a script with scenario of segments downloaded from
 ## Caveats
 
 - DashReStreamer is tested on video content splited in physical segments (profile full).
-- Software is tested with following video datasets: <https://www.ucc.ie/en/misl/research/datasets/ivid_dataset/> and <https://www.ucc.ie/en/misl/research/datasets/ivid_uhd_dataset/>.
-- TODO: add support for byte range DASH content.
+- Software is tested with following video datasets: <https://www.ucc.ie/en/misl/research/datasets/ivid_dataset/> and <https://www.ucc.ie/en/misl/research/datasets/ivid_uhd_dataset/>. (support for YouTube videos implemented in new version)
+- TODO: add support for byte range DASH content (implemented in new version)
 
 
 ## Dataset
@@ -111,3 +111,9 @@ We provide an extensive dataset containing video sequences created over 3G, 4G a
 ## Docker Container of DashReStreamer
 
 A docker container of DashReStreamer is available, please read the build/install/run instructions in the docker folder. 
+	
+V 0.3 improvements
+- Support for YouTube videos
+- byte range DASH content MPD file supported
+- Module for objective metrics calculation (PSNR, SSSIM, MS-SSSIM, VMAF - with different models) implemented
+- code refactored and bugs fixed
