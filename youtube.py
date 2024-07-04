@@ -82,7 +82,15 @@ def download_youtube_movies(path, url, list_seg_res_csv, youtube_videos, yt_movi
     #for every needed resolution stored in list_seg_res_csv - which is parsed from log
     for height in list_seg_res_csv:
         #if there is no available resolution, download next lower res
-        subrl = "bestvideo[height<="+str(height) + "]+bestaudio/best[height<=" + str(height) +"]"
+        #subrl = "bestvideo[height<="+str(height) + "]+bestaudio/best[height<=" + str(height) +"]"
+        #subrl = "bestvideo[height<="+str(height) + "][vcodec^=vp9]+bestaudio/best[height<=" + str(height) +"]"
+        #subrl = "bestvideo[height<="+str(height) + "][vcodec^=av01]+bestaudio/best[height<=" + str(height) +"]"
+        subrl = "bestvideo[height<="+str(height) + "][vcodec^=avc1]+bestaudio/best[height<=" + str(height) +"]"
+
+
+
+
+
         name = yt_movie_title+str(height)
         name = name.replace("\n", "")
         youtube_path=os.path.join(paths,name)
@@ -104,9 +112,15 @@ def get_youtube_title(url):
     # gets youtube movie title and store it to variable
     result = subprocess.run(['youtube-dl', '-e',  url
                          ],
-                        stdout=subprocess.PIPE).stdout.decode('utf-8')
+                        stdout=subprocess.PIPE).stdout.decode('iso8859-1')
+
+
+    #utf-8 - it may not work for every youtube url so try using
+    # 'iso8859-1' instead
     #delete blank spaces
     youtube_movie_title=result.replace(" ", "")
+    youtube_movie_title=''.join([i for i in youtube_movie_title if i.isalpha()])
+    youtube_movie_title = ''.join([i for i in youtube_movie_title if not i.isdigit()])
     return youtube_movie_title
 
 def copy_youtube_segments(path, destination, youtube_segments_dict):

@@ -6,12 +6,22 @@ import utils
 import re
 import pandas as pd
 
+
+
 vmaf_list = []
 vmaf_list1 = []
 vmaf_list2 = []
 vmaf_list3 = []
 
 def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='resources/vmaf_v0.6.1.json', model_path4k='resources/vmaf_4k_v0.6.1.json'):
+    vmaf_temp = 0
+    psnr_temp = 0
+    psnr_y_temp = 0
+    ssim_temp = 0
+    float_ssim_temp = 0
+    msssim_temp = 0
+    float_msssim_temp = 0
+
     #movie name is parsed from mpd
     mv=movie_name.replace(" ", "")
     #temporary list to save every result row
@@ -52,18 +62,38 @@ def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='res
                     temp_list.append(model_path)
                     for index, row in (df.loc[df['name'] == 'vmaf']).iterrows():
                         temp_list.append(row['mean'])
+                        vmaf_temp=row['mean']
+                        print("VMAF TEMP " + str(vmaf_temp))
                     for index, row in (df.loc[df['name'] == 'psnr']).iterrows():
                         temp_list.append(row['mean'])
+                        psnr_temp=row['mean']
+                        print("PSNR TEMP " + str(psnr_temp))
+
                     for index, row in (df.loc[df['name'] == 'psnr_y']).iterrows():
                         temp_list.append(row['mean'])
+                        psnr_y_temp=row['mean']
+                        print("psnr_y_temp TEMP " + str(psnr_y_temp))
+
                     for index, row in (df.loc[df['name'] == 'ssim']).iterrows():
                         temp_list.append(row['mean'])
+                        ssim_temp=row['mean']
+                        print("ssim_temp TEMP " + ssim_temp)
+
                     for index, row in (df.loc[df['name'] == 'float_ssim']).iterrows():
                         temp_list.append(row['mean'])
+                        float_ssim_temp=row['mean']
+                        print("float_ssim_temp TEMP " + str(float_ssim_temp))
+
                     for index, row in (df.loc[df['name'] == 'ms_ssim']).iterrows():
                         temp_list.append(row['mean'])
+                        msssim_temp=row['mean']
+                        print("msssim_temp TEMP " + str(msssim_temp))
+
                     for index, row in (df.loc[df['name'] == 'float_ms_ssim']).iterrows():
                         temp_list.append(row['mean'])
+                        float_ssim_temp=row['mean']
+                        print("float_ssim_temp TEMP " + str(float_ssim_temp))
+
                     #adding all metrics for 1 segment to vmaf_list which will be stored to a final csv
                     vmaf_list.append(temp_list.copy())
                     temp_list.clear()
@@ -72,7 +102,7 @@ def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='res
                         os.remove(log)
 
                     #calculate metrics with 4k model
-                    komanda = "ffmpeg -i " + path_video_orig + " -i " + path_video_ref + ' -lavfi libvmaf=model_path="' + model_path4k + '":n_threads=4:psnr=1:ssim=1:ms_ssim=1:log_fmt=xml:log_path=' + log + ' -f null - '
+                    komanda = "ffmpeg -i " + path_video_orig + " -i " + path_video_ref + ' -lavfi libvmaf=model_path="' + model_path4k + '":n_threads=4:log_fmt=xml:log_path=' + log + ' -f null - '
 
                     os.system(komanda)
                     df = pd.read_xml(log,
@@ -81,25 +111,20 @@ def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='res
                     temp_list.append(model_path4k)
                     for index, row in (df.loc[df['name'] == 'vmaf']).iterrows():
                         temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'psnr']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'psnr_y']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'float_ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'ms_ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'float_ms_ssim']).iterrows():
-                        temp_list.append(row['mean'])
+
+                    # temp_list.append(psnr_temp)
+                    temp_list.append(psnr_y_temp)
+                    # temp_list.append(ssim_temp)
+                    temp_list.append(float_ssim_temp)
+                    # temp_list.append(msssim_temp)
+                    temp_list.append(float_msssim_temp)
                     vmaf_list1.append(temp_list.copy())
                     temp_list.clear()
                     if os.path.isfile(log):
                         os.remove(log)
 
                     #4k model + phone
-                    komanda = "ffmpeg -i " + path_video_orig + " -i " + path_video_ref + ' -lavfi libvmaf=model_path="' + model_path4k + '":n_threads=4:psnr=1:ssim=1:ms_ssim=1:phone_model:log_fmt=xml:log_path=' + log + ' -f null - '
+                    komanda = "ffmpeg -i " + path_video_orig + " -i " + path_video_ref + ' -lavfi libvmaf=model_path="' + model_path4k + '":n_threads=4:phone_model=1:log_fmt=xml:log_path=' + log + ' -f null - '
                     os.system(komanda)
                     df = pd.read_xml(log,
                                      xpath="/VMAF/pooled_metrics/metric")
@@ -107,25 +132,19 @@ def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='res
                     temp_list.append(model_path4k + "_phone")
                     for index, row in (df.loc[df['name'] == 'vmaf']).iterrows():
                         temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'psnr']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'psnr_y']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'float_ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'ms_ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'float_ms_ssim']).iterrows():
-                        temp_list.append(row['mean'])
+                    #temp_list.append(psnr_temp)
+                    temp_list.append(psnr_y_temp)
+                    #temp_list.append(ssim_temp)
+                    temp_list.append(float_ssim_temp)
+                    #temp_list.append(msssim_temp)
+                    temp_list.append(float_msssim_temp)
                     vmaf_list2.append(temp_list.copy())
                     temp_list.clear()
                     if os.path.isfile(log):
                         os.remove(log)
 
                     #normal fullhd model + phone
-                    komanda = "ffmpeg -i " + path_video_orig + " -i " + path_video_ref + ' -lavfi libvmaf=model_path="' + model_path + '":n_threads=4:psnr=1:ssim=1:ms_ssim=1:phone_model:log_fmt=xml:log_path=' + log + ' -f null - '
+                    komanda = "ffmpeg -i " + path_video_orig + " -i " + path_video_ref + ' -lavfi libvmaf=model_path="' + model_path + '":n_threads=4:phone_model=1:log_fmt=xml:log_path=' + log + ' -f null - '
                     os.system(komanda)
                     df = pd.read_xml(log,
                                      xpath="/VMAF/pooled_metrics/metric")
@@ -133,28 +152,37 @@ def calculate_vmaf(paths,  movie_name, date, checkYoutube=False, model_path='res
                     temp_list.append(model_path + "_phone")
                     for index, row in (df.loc[df['name'] == 'vmaf']).iterrows():
                         temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'psnr']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'psnr_y']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'float_ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'ms_ssim']).iterrows():
-                        temp_list.append(row['mean'])
-                    for index, row in (df.loc[df['name'] == 'float_ms_ssim']).iterrows():
-                        temp_list.append(row['mean'])
+                    # temp_list.append(psnr_temp)
+                    temp_list.append(psnr_y_temp)
+                    # temp_list.append(ssim_temp)
+                    temp_list.append(float_ssim_temp)
+                    # temp_list.append(msssim_temp)
+                    temp_list.append(float_msssim_temp)
                     vmaf_list3.append(temp_list.copy())
                     temp_list.clear()
                     if os.path.isfile(log):
                         os.remove(log)
 
     #creating dataframes for every model to store them to csv
+    print( "LISTE ")
+    print(vmaf_list)
+    print(vmaf_list1)
+    print(vmaf_list2)
+    print(vmaf_list3)
     final_dataframe = pd.DataFrame(vmaf_list, columns=['Segment', 'Model_VMAF_norm','VMAF_norm', 'PSNR','SSIM', 'MS_SSIM'])
+    print(final_dataframe)
     final_dataframe1 = pd.DataFrame(vmaf_list1, columns=['Segment', 'Model_VMAF_4K','VMAF_4K', 'PSNR','SSIM', 'MS_SSIM'])
     final_dataframe2 = pd.DataFrame(vmaf_list2, columns=['Segment', 'Model_VMAF_phone_4k','VMAF_phone_4k', 'PSNR','SSIM', 'MS_SSIM'])
     final_dataframe3 = pd.DataFrame(vmaf_list3, columns=['Segment', 'Model_VMAF_phone','VMAF_phone', 'PSNR','SSIM', 'MS_SSIM'])
+    print(vmaf_list)
+    print(final_dataframe)
+    print(vmaf_list1)
+    print(final_dataframe1)
+    print(vmaf_list2)
+    print(final_dataframe2)
+    print(vmaf_list3)
+    print(final_dataframe3)
+
     #for concated csv
     lista.append(final_dataframe)
     lista.append(final_dataframe1)

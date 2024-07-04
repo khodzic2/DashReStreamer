@@ -33,8 +33,13 @@ def helper_get_max_resolution_fps_duration(path, prefix, list_seg_rep_csv , suff
             list_inter_names2[int(segment)] = str(filename)
 
     sorted_dict = dict(sorted(list_inter_names2.items()))
+    print("SORTED DICT")
+    print(sorted_dict)
     if checkyoutube:
-        segment = (sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]-1])
+        #fixed bug where max resolution segment in log is not part of the video (shorter videos)
+        indeks=(max(list(list_seg_rep_csv.items())[:len(sorted_dict)]))[0]
+        segment = (sorted_dict[indeks-1])
+        print(segment)
     else:
         segment = (sorted_dict[list(list_seg_rep_csv.keys())[list(list_seg_rep_csv.values()).index(max(list_seg_rep_csv.values()))]])
 

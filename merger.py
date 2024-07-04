@@ -412,15 +412,25 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration, list_sta
     # creates stalled segments in given path
     stall_duration = 0
     #key + 1 because in log stall is recorded afted that segment
+    print("list_stall_values")
+    print(list_stall_values)
     if list_stall_values[key + 1] != 0:
         #conversion from ms to seconds
         stall_duration = list_stall_values[key + 1] / 1000
         stall_duration = round(stall_duration, 1)
+        print("stall_duration")
+        print(key+1)
+        print(stall_duration)
+
     newname = str(sorted_dict[key]).split('.mkv')[0] + '.jpg'  # .removesuffix('.mkv')
+    print("newname")
+    print(newname)
     jpg_path = os.path.join(path, newname)
     file_path = os.path.join(path, sorted_dict[key])
     #create jpg picture from the stalled segment last frame
     komanda = 'ffmpeg -sseof -3 -i ' + file_path + ' -update 1 -q:v 1 ' + jpg_path
+    print("JPG_KOMANDA")
+    print(komanda)
     os.system(komanda)
     path_mp4 = os.path.join(path, sorted_dict[key])
     #get width, height, fps, duration of a video part of a segment
@@ -428,17 +438,23 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration, list_sta
                              'stream=width,height,avg_frame_rate,duration', '-of', 'default=noprint_wrappers=1',
                              path_mp4], stdout=subprocess.PIPE).stdout.decode('utf-8')
     x = utils.helper_format_result_string(result)
+    print("X FFPROBE")
+    print(x)
     #get sample_rate, channel_layout, codec_name of an audio part of a segment
     result2 = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries',
                               'stream=sample_rate,channel_layout,codec_name', '-of', 'default=noprint_wrappers=1',
                               path_mp4], stdout=subprocess.PIPE).stdout.decode('utf-8')
     y = utils.helper_format_result_string(result2)
+    print("Y FFPROBE")
+    print(y)
     path_mp4s = os.path.join(path, 's' + sorted_dict[key])
     #create new segment of a stalled part - jpg for the stall duration
     command = 'ffmpeg -loop 1 -i ' + jpg_path + ' -f lavfi -i anullsrc=channel_layout=' + y[5].split('(')[
-        0] + ':sample_rate=' + y[3] + ' -t ' + str(stall_duration) + ' -c:a ' + y[1] + ' -c:v libx264 -t ' + str(
+        0] + ':sample_rate=' + y[3] + ' -t ' + str(stall_duration) + ' -c:a ' + "libopus" + ' -c:v libx264 -t ' + str(
         stall_duration) + ' -pix_fmt yuv420p -vf scale=' + x[1] + ':' + x[3] + ' -r ' + (x[5].split('/'))[
                   0] + ' -y ' + path_mp4s
+    print("JPG+STALL")
+    print(command)
     os.system(command)
     temp_path = os.path.join(path, "temporaryList.txt")
     open(temp_path, 'w').close()
@@ -448,13 +464,17 @@ def create_stalled_video(path, sorted_dict, key, path_to_gif, duration, list_sta
     os.system(komanda)
     path_mp4ss = os.path.join(path, 'ss' + sorted_dict[key])
     komanda = 'ffmpeg -f concat -safe 0 -i ' + temp_path + ' -c copy ' + path_mp4ss
+    print("SS KOMANDA")
+    print(komanda)
     os.system(komanda)
     ss_path = os.path.join(path, 'sss' + sorted_dict[key])
-    subkomanda = "'gte(t," + str(duration) + ")'"""
+    subkomanda = "'gte(t," + str(duration+1.5) + ")'"""
     scale_gif = int(x[1]) // 13
     #concat original segment and stalled part + add stalling gif animation
     komanda = 'ffmpeg -i ' + path_mp4ss + ' -ignore_loop 0 -i ' + path_to_gif + ' -filter_complex "[1:v]format=yuva444p,scale=%d:%d,setsar=1,rotate=PI/6:c=black@0:ow=rotw(PI/6):oh=roth(PI/6) [rotate];[0:v][rotate] overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:format=auto:shortest=1:enable=' % (
         scale_gif, scale_gif) + subkomanda + '" -codec:a copy -y ' + ss_path
+    print("SSS komanda")
+    print(komanda)
     os.system(komanda)
     seg_path = os.path.join(path, "segmentList.txt")
     komanda = ' echo file ' + "'" + ss_path + "'" + '  >>  ' + seg_path
